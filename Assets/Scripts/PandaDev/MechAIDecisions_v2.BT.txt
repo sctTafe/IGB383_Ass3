@@ -1,0 +1,41 @@
+tree ("Root")
+    repeat
+        mute
+            fallback
+                tree "Pursuing"
+                tree "Attacking"
+                tree "Fleeing"
+                tree "Roaming"
+
+tree ("Pursuing")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			not Targeting_Conditional_isTargetInLOS()
+			not StatusCheck()
+		repeat
+			Pursue()
+
+tree ("Attacking")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			Targeting_Conditional_isTargetInLOS()
+			not StatusCheck()
+		repeat
+			Attack()
+
+tree ("Fleeing")
+	while 
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			StatusCheck()
+		repeat
+			Flee()
+
+tree ("Roaming")
+	while not Targeting_Conditional_HasAttackTarget()
+		repeat
+			Roam()
+
+

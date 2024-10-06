@@ -1,0 +1,21 @@
+
+tree("Root")
+	repeat
+		mute
+			fallback
+				tree "ABranch"
+				tree "BBranch"
+
+tree ("ABranch")
+	while Laser_Conditional_InFireAngle()		
+		repeat
+			Laser_Action_Fire()
+				
+tree ("BBranch")
+	while
+		sequence
+			HasAttackTarget()
+			Laser_Conditional_InRange()
+		repeat
+			Laser_Action_Fire()
+			

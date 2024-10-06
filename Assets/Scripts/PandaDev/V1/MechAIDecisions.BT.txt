@@ -1,0 +1,42 @@
+
+tree ("Root")
+	repeat
+		mute
+			fallback
+				tree "Pursuing"
+				tree "Attacking"
+				tree "Fleeing"
+				tree "Roaming"
+
+tree ("Pursuing")
+	while
+		sequence
+			HasAttackTarget()
+			not TargetLOS()
+			not StatusCheck()
+		repeat
+			Pursue()
+
+tree ("Attacking")
+	while
+		sequence
+			HasAttackTarget()
+			TargetLOS()
+			not StatusCheck()
+		repeat
+			Attack()
+
+tree ("Fleeing")
+	while 
+		sequence
+			HasAttackTarget()
+			StatusCheck()
+		repeat
+			Flee()
+
+tree ("Roaming")
+	while not HasAttackTarget()
+		repeat
+			Roam()
+
+

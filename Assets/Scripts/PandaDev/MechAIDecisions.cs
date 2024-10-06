@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Panda;
 
 public class MechAIDecisions : MechAI {
 
@@ -27,7 +28,7 @@ public class MechAIDecisions : MechAI {
     public GameObject[] aimTargets;
 
     //Attack Variables
-    private GameObject attackTarget;
+    [SerializeField] private GameObject attackTarget;
     private float attackTime = 3.5f;
     private float attackTimer;
 
@@ -37,6 +38,15 @@ public class MechAIDecisions : MechAI {
 
     //Flee Variables
     public GameObject fleeTarget;
+
+    private float _laser_ActivationDistance = 50f;
+    private float _laser_FireAngle = 20f;
+
+    private float _cannon_ActivationDistance = 100f;
+    private float _cannon_FireAngle = 15f; // Probably to high?
+
+    private float _missile_ActivationDistance = 200f;
+    private float _missile_FireAngle = 40f;
 
     // Use this for initialization
     void Start () {
@@ -53,32 +63,188 @@ public class MechAIDecisions : MechAI {
     }
 
     // Update is called once per frame
-    void Update() {
-
+    void Update()
+    {
         //Acquire valid attack target: perform frustum and LOS checks and determine closest target
         mechAIAiming.FrustumCheck();
 
-        if (!attackTarget) {
+        //OLD_WeaponsSystem();
+        //OLD_FSMStateSwitching();
+
+        // TODO: Circile back to this to remove it
+        if (!attackTarget)
+        {
+            attackTarget = mechAIAiming.ClosestTarget(mechAIAiming.currentTargets);
+            mechAIWeapons.laserBeamAI = false;  //Hard disable on laserBeam
+        }
+    }
+
+
+
+
+    #region Pre Behavior Tree Logic
+    private void OLD_WeaponsSystem()
+    {
+        if (!attackTarget)
+        {
             attackTarget = mechAIAiming.ClosestTarget(mechAIAiming.currentTargets);
             mechAIWeapons.laserBeamAI = false;  //Hard disable on laserBeam
         }
         else
             FiringSystem();
+    }
+    //Method controlling logic of firing of weapons: Consider minimum ammunition, appropriate range, firing angle etc
+    private void FiringSystem()
+    {
 
+        //Lasers - Enough energy and within a generous firing angle
+        if (mechSystem.energy > 10 && mechAIAiming.FireAngle(20))
+            mechAIWeapons.Lasers();
+
+        //Cannons - Moderate distance, enough shells and tight firing angle
+        if (Vector3.Distance(transform.position, attackTarget.transform.position) > 25
+            && mechSystem.shells > 4 && mechAIAiming.FireAngle(15))
+            mechAIWeapons.Cannons();
+
+        //Missile Array - Long Range, enough ammo, very tight firing angle
+        if (Vector3.Distance(transform.position, attackTarget.transform.position) > 50
+            && mechSystem.missiles >= 18 && mechAIAiming.FireAngle(5))
+            mechAIWeapons.MissileArray();
+
+        //Laser Beam - Strict range, plenty of energy and very tight firing angle
+        if (Vector3.Distance(transform.position, attackTarget.transform.position) > 20
+            && Vector3.Distance(transform.position, attackTarget.transform.position) < 50
+            && mechSystem.energy >= 300 && mechAIAiming.FireAngle(10))
+            mechAIWeapons.laserBeamAI = true;
+        else
+            mechAIWeapons.laserBeamAI = false;
+    }
+    #endregion
+
+    #region Targeting
+    [Task]
+    bool Targeting_Action_TryGetClosestTarget()
+    {
+        attackTarget = mechAIAiming.ClosestTarget(mechAIAiming.currentTargets);
+        
+        if (attackTarget == null)
+            return false;
+        else return true;
+    }
+
+    [Task]
+    bool Targeting_Conditional_HasAttackTarget()
+    {
+        if (attackTarget != null)
+            return true;
+        else
+            return false;
+    }
+
+    [Task]
+    bool Targeting_Conditional_isTargetInLOS()
+    {
+        if (mechAIAiming.LineOfSight(attackTarget))
+            return true;
+        else
+            return false;
+    }
+    #endregion
+
+    #region Laser
+    [Task]
+    bool Laser_Conditional_InRange()
+    {
+        return Vector3.Distance(transform.position, attackTarget.transform.position) < _laser_ActivationDistance;
+    }
+    [Task]
+    bool Laser_Conditional_InFireAngle()
+    {
+        return mechAIAiming.FireAngle(_laser_FireAngle);
+    }
+    [Task]
+    bool Laser_Conditional_SufficientResources()
+    {    
+        return mechSystem.energy > 4; 
+    }
+    [Task]
+    void Laser_Action_Fire()
+    {
+        mechAIWeapons.Lasers();
+    }
+    #endregion
+    #region Cannons
+    [Task]
+    bool Cannons_Conditional_InRange()
+    {
+        return Vector3.Distance(transform.position, attackTarget.transform.position) < _cannon_ActivationDistance;
+    }
+    [Task]
+    bool Cannons_Conditional_InFireAngle()
+    {
+        return mechAIAiming.FireAngle(_cannon_FireAngle);
+    }
+    [Task]
+    bool Cannons_Conditional_SufficientResources() 
+    {
+        return mechSystem.shells > 2;
+    }
+    [Task]
+    void Cannon_Action_Fire()
+    {
+        mechAIWeapons.Cannons();
+    }
+    #endregion
+    #region Missiles
+    [Task]
+    bool Missile_Conditional_InRange()
+    {
+        return Vector3.Distance(transform.position, attackTarget.transform.position) < _missile_ActivationDistance;
+    }
+    [Task]
+    bool Missile_Conditional_InFireAngle()
+    {
+        return mechAIAiming.FireAngle(_missile_FireAngle);
+    }
+    [Task]
+    bool Missile_Conditional_SufficientResources()
+    {
+        return mechSystem.shells > 2;
+    }
+    [Task]
+    void Missile_Action_Fire()
+    {
+        mechAIWeapons.MissileArray();
+    }
+    #endregion
+    #region Beam
+
+    #endregion
+
+
+
+
+
+
+
+
+    private void OLD_FSMStateSwitching()
+    {
         //FSM - Behaviour Selection
-        switch (mechState) {
+        switch (mechState)
+        {
             case (MechStates.Roam):
                 Roam();
-            break;
+                break;
             case (MechStates.Attack):
                 Attack();
-            break;
+                break;
             case (MechStates.Pursue):
                 Pursue();
-            break;
+                break;
             case (MechStates.Flee):
                 Flee();
-            break;
+                break;
         }
 
         //FSM Transition Logic - Replace this with Decision Tree implementation!
@@ -92,7 +258,10 @@ public class MechAIDecisions : MechAI {
             mechState = MechStates.Roam;
     }
 
+
+
     //FSM Behaviour: Roam - Roam between random patrol points
+    [Task]
     private void Roam() {
         //Move towards random patrol point
         if (Vector3.Distance(transform.position, patrolPoints[patrolIndex].transform.position) <= 2.0f) {
@@ -105,6 +274,7 @@ public class MechAIDecisions : MechAI {
     }
 
     //FSM Behaviour: Attack 
+    [Task]
     private void Attack() {
          
         //If there is a target, set it as the aimTarget 
@@ -130,6 +300,7 @@ public class MechAIDecisions : MechAI {
     }
 
     //FSM Behaviour: Pursue
+    [Task]
     void Pursue() {
 
         //Move towards last known position of attackTarget
@@ -147,6 +318,7 @@ public class MechAIDecisions : MechAI {
     }
 
     //FSM Behaviour: Flee
+    [Task]
     void Flee() {
 
         //If there is an attack target, set it as the aimTarget 
@@ -183,6 +355,7 @@ public class MechAIDecisions : MechAI {
     }
 
     //Method for checking heuristic status of Mech to determine if Fleeing is necessary
+    [Task]
     private bool StatusCheck() {
 
         float status = mechSystem.health + mechSystem.energy + (mechSystem.shells * 7) + (mechSystem.missiles * 10);
@@ -193,32 +366,6 @@ public class MechAIDecisions : MechAI {
             return true;
     }
 
-    //Method controlling logic of firing of weapons: Consider minimum ammunition, appropriate range, firing angle etc
-    private void FiringSystem() {
 
-        //Lasers - Enough energy and within a generous firing angle
-        if (mechSystem.energy > 10 && mechAIAiming.FireAngle(20))
-            mechAIWeapons.Lasers();
-
-        //Cannons - Moderate distance, enough shells and tight firing angle
-        if (Vector3.Distance(transform.position, attackTarget.transform.position) > 25
-            && mechSystem.shells > 4 && mechAIAiming.FireAngle(15))
-            mechAIWeapons.Cannons();
-
-        //Laser Beam - Strict range, plenty of energy and very tight firing angle
-        if (Vector3.Distance(transform.position, attackTarget.transform.position) > 20
-            && Vector3.Distance(transform.position, attackTarget.transform.position) < 50
-            && mechSystem.energy >= 300 && mechAIAiming.FireAngle(10))
-            mechAIWeapons.laserBeamAI = true;
-        else
-            mechAIWeapons.laserBeamAI = false;
-
-        
-        //Missile Array - Long Range, enough ammo, very tight firing angle
-        if (Vector3.Distance(transform.position, attackTarget.transform.position) > 50
-            && mechSystem.missiles >= 18 && mechAIAiming.FireAngle(5))
-            mechAIWeapons.MissileArray();
-
-    }
 
 }

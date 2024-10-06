@@ -1,0 +1,9 @@
+
+	while
+		sequence
+			HasAttackTarget()
+			Laser_Conditional_InRange()
+			Laser_Conditional_InFireAngle()
+			Laser_Conditional_SufficientResources()
+	repeat
+		Laser_Action_Fire()

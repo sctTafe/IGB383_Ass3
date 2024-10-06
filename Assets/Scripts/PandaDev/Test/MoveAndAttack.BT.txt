@@ -1,0 +1,18 @@
+
+tree("Root")
+	repeat
+		mute
+			fallback
+				tree "Attacking"
+				tree "Patrolling"
+
+tree ("Attacking")
+	while IsTargetNear()
+		repeat
+			Attack()
+
+tree ("Patrolling")
+	while not IsTargetNear()
+		repeat
+			Patrol()
+
