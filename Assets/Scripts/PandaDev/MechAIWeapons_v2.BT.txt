@@ -3,12 +3,13 @@ tree("Root")
 	repeat
 		mute
 			parallel
-				tree "Cannons"
 				tree "Laser"
+				tree "Cannons"			
 				tree "Missiles"
+				tree "Beam"
 
 tree ("Laser")
-	while 
+	while
 		sequence
 			Targeting_Conditional_HasAttackTarget()
 			Laser_Conditional_InRange()
@@ -36,11 +37,13 @@ tree ("Missiles")
 			Missile_Conditional_SufficientResources()
 		repeat
 			Missile_Action_Fire()
+
 tree ("Beam")
 	while
 		sequence
 			Targeting_Conditional_HasAttackTarget()
-			Missile_Conditional_InRange()
-			Missile_Conditional_InFireAngle()
-			Missile_Conditional_SufficientResources()
+			Beam_Conditional_InRange()
+			Beam_Conditional_InFireAngle()
+			Beam_Conditional_SufficientResources()
 		repeat
+			Beam_Action_Activate()
