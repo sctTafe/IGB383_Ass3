@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Panda;
 using UnityEditor.Experimental.GraphView;
+using System.Linq;
 
 public class MechAIDecisions : MechAI {
 
@@ -53,6 +54,12 @@ public class MechAIDecisions : MechAI {
     private float _beam_ActivationDistanceMax = 50f;
     private float _beam_FireAngle = 20f;
 
+    // Assumed Knowledge
+    private PickupSpawner[] _allResorucePickupPoints;
+    private List<GameObject> _ResourcePoints = new List<GameObject>();
+
+
+
     // Use this for initialization
     void Start () {
         //Collect Mech and AI Systems
@@ -65,6 +72,13 @@ public class MechAIDecisions : MechAI {
         patrolPoints = GameObject.FindGameObjectsWithTag("Patrol Point");
         patrolIndex = Random.Range(0, patrolPoints.Length - 1);
         mechAIMovement.Movement(patrolPoints[patrolIndex].transform.position, 1);
+
+        //Get Assumed Knowledge
+        _allResorucePickupPoints = Object.FindObjectsOfType<PickupSpawner>();
+        foreach (var rp in _allResorucePickupPoints) {
+            if (rp.enabled == true)
+                _ResourcePoints.Add(rp.gameObject);
+        }
     }
 
     // Update is called once per frame
@@ -75,6 +89,7 @@ public class MechAIDecisions : MechAI {
 
         //OLD_WeaponsSystem();
         //OLD_FSMStateSwitching();
+
 
         // TODO: Circile back to this to remove it
         if (!attackTarget)
@@ -320,6 +335,46 @@ public class MechAIDecisions : MechAI {
     }
 
 
+    bool _isWalkingToResourcePoint;
+
+    
+    [Task]
+    private bool HasReachedDestinationResourcePoint() {
+            return !_isWalkingToResourcePoint;    
+    }
+
+
+    [Task] 
+    private void GoToResroucePoint() {
+        // Consideration: if next to a resrouce point should pick another 
+        // If best is less then 5f away and not present, chose the next to run to
+        // IDEA: use a physics check to check if theres any bots that are closer to the point than you
+
+        // Order Resorucde Points by distance to
+        _ResourcePoints.OrderBy(obj => Vector3.Distance(this.transform.position, obj.transform.position)).ToList();
+
+        // DOES: If close to point, check if pickup is there,
+        // TODO / NOTE: maybe a LOS check to make it realistic or atleast need to be a close distance near the thing to check if its present
+        
+        // Check Point for if there is a pickup at it
+        Vector3 posToCheck = _ResourcePoints[0].transform.position;
+        Collider[] hitColliders = Physics.OverlapSphere(posToCheck, 5f);
+        bool isResorucePackPresent = false;
+        foreach (var hit in hitColliders) {
+            if (hit.TryGetComponent<Pickup>(out Pickup p))
+                isResorucePackPresent = true;
+        }
+
+        // If resoruce pack at point, walk to it
+        if(isResorucePackPresent)
+            mechAIMovement.Movement(patrolPoints[patrolIndex].transform.position, 1);
+        else
+
+        // Start Heading to the next resrouce point
+            
+
+
+    }
 
     #region OLD LOGIC - Pre Behavior Tree Logic
     private void OLD_WeaponsSystem()
@@ -332,6 +387,7 @@ public class MechAIDecisions : MechAI {
         else
             FiringSystem();
     }
+    
     //Method controlling logic of firing of weapons: Consider minimum ammunition, appropriate range, firing angle etc
     private void FiringSystem()
     {
