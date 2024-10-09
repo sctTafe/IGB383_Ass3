@@ -342,36 +342,59 @@ public class MechAIDecisions : MechAI {
     private bool HasReachedDestinationResourcePoint() {
             return !_isWalkingToResourcePoint;    
     }
+    [Task]
+    private bool Temp() {
+        return true;
+    }
 
+    GameObject _currentResorucePointTarget;
 
+    /// Consideration: if next to a resrouce point should pick another 
+    /// If best is less then 5f away and not present, chose the next to run to
+    /// IDEA: use a physics check to check if theres any bots that are closer to the point than you
     [Task] 
     private void GoToResroucePoint() {
-        // Consideration: if next to a resrouce point should pick another 
-        // If best is less then 5f away and not present, chose the next to run to
-        // IDEA: use a physics check to check if theres any bots that are closer to the point than you
 
-        // Order Resorucde Points by distance to
-        _ResourcePoints.OrderBy(obj => Vector3.Distance(this.transform.position, obj.transform.position)).ToList();
+        // Generate New target point
+        if(_currentResorucePointTarget == null) 
+        {
+            // Order Resorucde Points by distance to
+            _ResourcePoints.OrderBy(obj => Vector3.Distance(this.transform.position, obj.transform.position)).ToList();
 
-        // DOES: If close to point, check if pickup is there,
-        // TODO / NOTE: maybe a LOS check to make it realistic or atleast need to be a close distance near the thing to check if its present
-        
-        // Check Point for if there is a pickup at it
-        Vector3 posToCheck = _ResourcePoints[0].transform.position;
-        Collider[] hitColliders = Physics.OverlapSphere(posToCheck, 5f);
-        bool isResorucePackPresent = false;
-        foreach (var hit in hitColliders) {
-            if (hit.TryGetComponent<Pickup>(out Pickup p))
-                isResorucePackPresent = true;
+            // DOES: If close to point, check if pickup is there,
+            // TODO / NOTE: maybe a LOS check to make it realistic or atleast need to be a close distance near the thing to check if its present
+
+
+            // Check Point for if there is a pickup at it
+            Vector3 posToCheck = _ResourcePoints[0].transform.position;
+            Collider[] hitColliders = Physics.OverlapSphere(posToCheck, 5f);
+            bool isResorucePackPresent = false;
+            foreach (var hit in hitColliders) {
+                if (hit.TryGetComponent<Pickup>(out Pickup p))
+                    isResorucePackPresent = true;
+            }
+
+            if (isResorucePackPresent)
+                _currentResorucePointTarget = patrolPoints[patrolIndex];
+            else
+                _currentResorucePointTarget = null;
         }
 
+        if(_currentResorucePointTarget != null)
+            mechAIMovement.Movement(_currentResorucePointTarget.transform.position, 1);
+
+
+
+
         // If resoruce pack at point, walk to it
-        if(isResorucePackPresent)
-            mechAIMovement.Movement(patrolPoints[patrolIndex].transform.position, 1);
-        else
+
+
+
+        // else
+
 
         // Start Heading to the next resrouce point
-            
+
 
 
     }

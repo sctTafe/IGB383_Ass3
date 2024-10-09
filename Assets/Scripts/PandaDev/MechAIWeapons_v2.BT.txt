@@ -3,10 +3,14 @@ tree("Root")
 	repeat
 		mute
 			parallel
-				tree "Laser"
-				tree "Cannons"			
-				tree "Missiles"
-				tree "Beam"
+				mute
+					tree "Laser"
+				mute
+					tree "Cannons"
+				mute
+					tree "Missiles"
+				mute
+					tree "Beam"
 
 tree ("Laser")
 	while
