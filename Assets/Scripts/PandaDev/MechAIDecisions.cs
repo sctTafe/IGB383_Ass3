@@ -336,8 +336,10 @@ public class MechAIDecisions : MechAI {
 
 
     bool _isWalkingToResourcePoint;
-
     
+    public GameObject _currentResorucePointTarget;
+
+
     [Task]
     private bool HasReachedDestinationResourcePoint() {
             return !_isWalkingToResourcePoint;    
@@ -346,8 +348,6 @@ public class MechAIDecisions : MechAI {
     private bool Temp() {
         return true;
     }
-
-    GameObject _currentResorucePointTarget;
 
     /// Consideration: if next to a resrouce point should pick another 
     /// If best is less then 5f away and not present, chose the next to run to
@@ -380,8 +380,20 @@ public class MechAIDecisions : MechAI {
                 _currentResorucePointTarget = null;
         }
 
-        if(_currentResorucePointTarget != null)
-            mechAIMovement.Movement(_currentResorucePointTarget.transform.position, 1);
+        // Move to Resrouce Point
+        if(_currentResorucePointTarget != null) {
+            if(Vector3.Distance(this.transform.position, _currentResorucePointTarget.transform.position) > 2f) {
+
+                //Move towards it not there yet
+                mechAIMovement.Movement(_currentResorucePointTarget.transform.position, 1);
+            }
+            else {
+                // Clear target if there
+                _currentResorucePointTarget = null;
+            }          
+        }
+
+            
 
 
 

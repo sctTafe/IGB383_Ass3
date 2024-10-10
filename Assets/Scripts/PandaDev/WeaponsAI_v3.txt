@@ -1,0 +1,52 @@
+tree("Root")
+	while Targeting_Conditional_HasAttackTarget()
+		repeat
+			parallel
+				mute
+					tree "Laser"
+				mute
+					tree "Cannons"
+				mute
+					tree "Missiles"
+				mute
+					tree "Beam"
+
+tree ("Laser")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			Laser_Conditional_InRange()
+			Laser_Conditional_InFireAngle()
+			Laser_Conditional_SufficientResources()
+		repeat
+			Laser_Action_Fire()				
+
+tree ("Cannons")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			Cannons_Conditional_InRange()
+			Cannons_Conditional_InFireAngle()
+			Cannons_Conditional_SufficientResources()
+		repeat
+			Cannon_Action_Fire()
+
+tree ("Missiles")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			Missile_Conditional_InRange()
+			Missile_Conditional_InFireAngle()
+			Missile_Conditional_SufficientResources()
+		repeat
+			Missile_Action_Fire()
+
+tree ("Beam")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			Beam_Conditional_InRange()
+			Beam_Conditional_InFireAngle()
+			Beam_Conditional_SufficientResources()
+		repeat
+			Beam_Action_Activate()

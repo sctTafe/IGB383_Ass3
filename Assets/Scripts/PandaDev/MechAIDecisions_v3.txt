@@ -40,7 +40,7 @@ tree ("Roaming")
 			Roam()
 
 tree ("ResourceHunt")
-	while not Temp()
+	while Temp()
 		repeat
 			GoToResroucePoint()
 
