@@ -42,11 +42,13 @@ tree ("Missiles")
 			Missile_Action_Fire()
 
 tree ("Beam")
-	while
-		sequence
-			Targeting_Conditional_HasAttackTarget()
-			Beam_Conditional_InRange()
-			Beam_Conditional_InFireAngle()
-			Beam_Conditional_SufficientResources()
-		repeat
-			Beam_Action_Activate()
+	fallback
+		while
+			sequence
+				Targeting_Conditional_HasAttackTarget()
+				Beam_Conditional_InRange()
+				Beam_Conditional_InFireAngle()
+				Beam_Conditional_SufficientResources()
+			repeat
+				Beam_Action_Activate()
+		Beam_DeactivateBeam()

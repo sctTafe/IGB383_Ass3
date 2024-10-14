@@ -42,7 +42,7 @@ tree ("Roaming")
 tree ("ResourceHunt")
 	while Temp()
 		repeat
-			GoToResroucePoint()
+			GoToNearestActiveResourcePoint()
 
 
 

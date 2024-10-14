@@ -56,7 +56,7 @@ public class MechAIDecisions : MechAI {
 
     // Assumed Knowledge
     private PickupSpawner[] _allResorucePickupPoints;
-    private List<GameObject> _ResourcePoints = new List<GameObject>();
+    [SerializeField] private List<GameObject> _ResourcePoints = new List<GameObject>();
 
 
 
@@ -97,10 +97,30 @@ public class MechAIDecisions : MechAI {
             attackTarget = mechAIAiming.ClosestTarget(mechAIAiming.currentTargets);
             mechAIWeapons.laserBeamAI = false;  //Hard disable on laserBeam
         }
+
+
+        
+
     }
 
+    //private GameObject GetClosestResroucePoint()
+    //{
+    //    float closestDis = float.MaxValue;
+    //    GameObject currentClosest = null;
+    //    float distToRp;
+    //    foreach (var rp in _ResourcePoints)
+    //    {
+    //        distToRp = Vector3.Distance(this.transform.position, rp.transform.position);
+    //        if (distToRp < closestDis)
+    //        {
+    //            closestDis = distToRp;
+    //            currentClosest = rp;
+    //        }
+    //    }
+    //    return currentClosest;
+    //}
 
-   
+
 
     #region Targeting
     [Task]
@@ -222,6 +242,13 @@ public class MechAIDecisions : MechAI {
     void Beam_Action_Activate()
     {
         mechAIWeapons.laserBeamAI = true;
+    }
+
+    [Task]
+    bool Beam_DeactivateBeam()
+    {
+        mechAIWeapons.laserBeamAI = false;
+        return false; // NOTE: Returns false to exit fallback the node
     }
     #endregion
 
@@ -353,13 +380,13 @@ public class MechAIDecisions : MechAI {
     /// If best is less then 5f away and not present, chose the next to run to
     /// IDEA: use a physics check to check if theres any bots that are closer to the point than you
     [Task] 
-    private void GoToResroucePoint() {
+    private void GoToNearestActiveResourcePoint() {
 
         // Generate New target point
         if(_currentResorucePointTarget == null) 
         {
             // Order Resorucde Points by distance to
-            _ResourcePoints.OrderBy(obj => Vector3.Distance(this.transform.position, obj.transform.position)).ToList();
+            _ResourcePoints = _ResourcePoints.OrderBy(obj => Vector3.Distance(this.transform.position, obj.transform.position)).ToList();
 
             // DOES: If close to point, check if pickup is there,
             // TODO / NOTE: maybe a LOS check to make it realistic or atleast need to be a close distance near the thing to check if its present
@@ -374,10 +401,11 @@ public class MechAIDecisions : MechAI {
                     isResorucePackPresent = true;
             }
 
+            // iF the is a resource package at first point of there, else head to next closest
             if (isResorucePackPresent)
                 _currentResorucePointTarget = patrolPoints[patrolIndex];
             else
-                _currentResorucePointTarget = null;
+                _currentResorucePointTarget = _ResourcePoints[1];
         }
 
         // Move to Resrouce Point
@@ -393,22 +421,8 @@ public class MechAIDecisions : MechAI {
             }          
         }
 
-            
-
-
-
-
-        // If resoruce pack at point, walk to it
-
-
-
-        // else
-
-
-        // Start Heading to the next resrouce point
-
-
-
+        //Look at random patrol points - Just look around randomly
+        mechAIAiming.RandomAimTarget(patrolPoints);
     }
 
     #region OLD LOGIC - Pre Behavior Tree Logic
