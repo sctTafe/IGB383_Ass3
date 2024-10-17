@@ -3,6 +3,8 @@ tree("Root")
 		repeat
 			parallel
 				mute
+					tree "LaserConservationMode"
+				mute
 					tree "Laser"
 				mute
 					tree "Cannons"
@@ -11,7 +13,13 @@ tree("Root")
 				mute
 					tree "Beam"
 
-tree ("Laser")
+tree ("LaserConservationMode")
+	fallback
+		while Laser_Conditional_OverHalfAmmoRemaining()				
+			Laser_Action_SetBaseWeaponValues()
+		Laser_Action_SetConservativeFiringValues()
+
+tree ("Laser")				
 	while
 		sequence
 			Targeting_Conditional_HasAttackTarget()

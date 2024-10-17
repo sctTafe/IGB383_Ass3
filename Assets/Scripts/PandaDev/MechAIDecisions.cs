@@ -41,18 +41,37 @@ public class MechAIDecisions : MechAI {
     //Flee Variables
     public GameObject fleeTarget;
 
-    private float _laser_ActivationDistance = 50f;
-    private float _laser_FireAngle = 20f;
+    private float _weapons_ConservativeReductionCoefficent = 0.75f;
 
-    private float _cannon_ActivationDistance = 100f;
-    private float _cannon_FireAngle = 15f; // Probably to high?
+    private float _laser_HalfEnergyMaxValue = 375;
+    [SerializeField] private float _laser_BaseActivationDistance = 50f;
+    [SerializeField] private float _laser_BaseFireAngle = 35f;
+    [SerializeField] private float _laser_ActivationDistance;
+    [SerializeField] private float _laser_FireAngle;
 
-    private float _missile_ActivationDistance = 200f;
-    private float _missile_FireAngle = 40f;
+    private float _cannon_HalfAmmoMaxValue = 15;
+    private float _cannon_BaseActivationDistance = 100f;
+    private float _cannon_BaseFireAngle = 30f;
+    private float _cannon_ActivationDistance;
+    private float _cannon_FireAngle;
 
-    private float _beam_ActivationDistanceMin = 20f;
-    private float _beam_ActivationDistanceMax = 50f;
-    private float _beam_FireAngle = 20f;
+    private float _missiles_HalfAmmoMaxValue = 27;
+    private float _missile_BaseActivationDistance = 200f;
+    private float _missile_BaseFireAngle = 40f;
+    private float _missile_ActivationDistance;
+    private float _missile_FireAngle;
+
+    private float _beam_HalfAmmoMaxValue = 375;
+    private float _beam_BaseActivationDistanceMin = 20f;
+    private float _beam_BaseActivationDistanceMax = 50f;
+    private float _beam_BaseFireAngle = 20f;
+    private float _beam_ActivationDistanceMin;
+    private float _beam_ActivationDistanceMax;
+    private float _beam_FireAngle;
+
+
+
+
 
     // Assumed Knowledge
     private PickupSpawner[] _allResorucePickupPoints;
@@ -79,6 +98,8 @@ public class MechAIDecisions : MechAI {
             if (rp.enabled == true)
                 _ResourcePoints.Add(rp.gameObject);
         }
+
+        Weapons_SetAllBaseWeaponValues();
     }
 
     // Update is called once per frame
@@ -120,6 +141,34 @@ public class MechAIDecisions : MechAI {
     //    return currentClosest;
     //}
 
+
+
+
+
+
+    #region Weapons
+
+    /// <summary>
+    /// Sets All Weapon Firing Values to Base Values
+    /// </summary>
+    [Task]
+    void Weapons_SetAllBaseWeaponValues() {
+        Laser_Action_SetBaseWeaponValues();
+        Cannon_Action_SetBaseWeaponValues();
+        Missile_Action_SetBaseWeaponValues();
+        Beam_Action_SetBaseWeaponValues();
+    }
+
+    /// <summary>
+    /// Sets all weapons to conservative firing values
+    /// </summary>
+    [Task]
+    void Weapons_SetAllToConservativeFiringValues() {
+        Laser_Action_SetConservativeFiringValues();
+        Cannon_Action_SetConservativeFiringValues();
+        Missile_Action_SetConservativeFiringValues();
+        Beam_Action_SetConservativeFiringValues();
+    }
 
 
     #region Targeting
@@ -173,6 +222,29 @@ public class MechAIDecisions : MechAI {
     {
         mechAIWeapons.Lasers();
     }
+
+    [Task]
+    bool Laser_Conditional_OverHalfAmmoRemaining() {
+        if (mechSystem.energy > _laser_HalfEnergyMaxValue)
+            return true;
+        else
+            return false;
+    }
+
+    [Task]
+    bool Laser_Action_SetBaseWeaponValues() {
+        _laser_ActivationDistance = _laser_BaseActivationDistance;
+        _laser_FireAngle = _laser_BaseFireAngle;
+        return false; // NOTE: Return fail so that it can exit this branch
+    }
+
+    [Task]
+    bool Laser_Action_SetConservativeFiringValues() {
+        _laser_ActivationDistance = _laser_BaseActivationDistance * _weapons_ConservativeReductionCoefficent;
+        _laser_FireAngle = _laser_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
+        return false; // NOTE: Return fail so that it can exit this branch
+    }
+
     #endregion
     #region Cannons
     [Task]
@@ -195,6 +267,24 @@ public class MechAIDecisions : MechAI {
     {
         mechAIWeapons.Cannons();
     }
+    [Task]
+    bool Cannon_OverHalfAmmoRemaining() {
+        if (mechSystem.shells > _cannon_HalfAmmoMaxValue)
+            return true;
+        else
+            return false;
+    }
+    [Task]
+    void Cannon_Action_SetBaseWeaponValues() {
+        _cannon_ActivationDistance = _cannon_BaseActivationDistance;
+        _cannon_FireAngle = _cannon_BaseFireAngle;
+    }
+    [Task]
+    void Cannon_Action_SetConservativeFiringValues() {
+        _cannon_ActivationDistance = _cannon_BaseActivationDistance * _weapons_ConservativeReductionCoefficent;
+        _cannon_FireAngle = _cannon_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
+    }
+
     #endregion
     #region Missiles
     [Task]
@@ -210,13 +300,32 @@ public class MechAIDecisions : MechAI {
     [Task]
     bool Missile_Conditional_SufficientResources()
     {
-        return mechSystem.shells > 2;
+        return mechSystem.missiles > 18;
     }
     [Task]
     void Missile_Action_Fire()
     {
         mechAIWeapons.MissileArray();
     }
+    [Task]
+    bool Missile_OverHalfAmmoRemaining() {
+        if (mechSystem.missiles > _missiles_HalfAmmoMaxValue)
+            return true;
+        else
+            return false;
+    }
+    [Task]
+    void Missile_Action_SetBaseWeaponValues() {
+        _missile_ActivationDistance = _missile_BaseActivationDistance;
+        _missile_FireAngle = _missile_BaseFireAngle;
+    }
+
+    [Task]
+    void Missile_Action_SetConservativeFiringValues() {
+        _missile_ActivationDistance = _missile_BaseActivationDistance * _weapons_ConservativeReductionCoefficent;
+        _missile_FireAngle = _missile_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
+    }
+
     #endregion
     #region Beam
     [Task]
@@ -239,20 +348,41 @@ public class MechAIDecisions : MechAI {
         return mechSystem.energy >= 300;
     }
     [Task]
+    bool Beam_Conditional_OverHalfAmmoRemaining() {
+        if (mechSystem.missiles > _beam_HalfAmmoMaxValue)
+            return true;
+        else
+            return false;
+    }
+    [Task]
     void Beam_Action_Activate()
     {
         mechAIWeapons.laserBeamAI = true;
     }
-
     [Task]
-    bool Beam_DeactivateBeam()
+    bool Beam_Action_DeactivateBeam()
     {
         mechAIWeapons.laserBeamAI = false;
         return false; // NOTE: Returns false to exit fallback the node
     }
-    #endregion
+    [Task]
+    void Beam_Action_SetBaseWeaponValues() {
+        _beam_ActivationDistanceMin = _beam_BaseActivationDistanceMin;
+        _beam_ActivationDistanceMax = _beam_BaseActivationDistanceMax;
+        _beam_FireAngle = _beam_BaseFireAngle;
+    }
 
-           
+    [Task]
+    void Beam_Action_SetConservativeFiringValues() {
+        _beam_ActivationDistanceMin = _beam_BaseActivationDistanceMin * _weapons_ConservativeReductionCoefficent;
+        _beam_ActivationDistanceMax = _beam_BaseActivationDistanceMax * _weapons_ConservativeReductionCoefficent;
+        _beam_FireAngle = _beam_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
+    }
+    //_weapons_ConservativeReductionCoefficent
+
+    #endregion
+    #endregion // Weapons End
+
     #region Primary Behavior Actions
     //FSM Behaviour: Roam - Roam between random patrol points
     [Task]
@@ -424,6 +554,12 @@ public class MechAIDecisions : MechAI {
         //Look at random patrol points - Just look around randomly
         mechAIAiming.RandomAimTarget(patrolPoints);
     }
+
+    #region
+
+
+
+    #endregion
 
     #region OLD LOGIC - Pre Behavior Tree Logic
     private void OLD_WeaponsSystem()
