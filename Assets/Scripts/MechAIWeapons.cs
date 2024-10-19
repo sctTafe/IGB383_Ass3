@@ -51,7 +51,7 @@ public class MechAIWeapons : MonoBehaviour {
     private float missileFireTime;
     private float missileRechargeTime = 5.0f;
     private bool missileFiring = false;
-    private GameObject lockedTarget;
+    public GameObject missile_lockedTarget;
     private float lockTimer;
 
     // Use this for initialization
@@ -192,11 +192,12 @@ public class MechAIWeapons : MonoBehaviour {
         if (Physics.Raycast(rayCastPoint.transform.position, -(rayCastPoint.transform.position - rayCastTarget.transform.position).normalized, out hit, 50.0f)) {
 
             if (hit.transform.GetComponent<TakeDamage>()) {
-                lockedTarget = hit.transform.gameObject;
+                missile_lockedTarget = hit.transform.gameObject;
                 lockTimer = Time.time + 3.0f;
+                Debug.Log(" MissileArray:  " + this.transform.name + " lockedTarget = " + missile_lockedTarget);
             }
             else if (lockTimer < Time.time)
-                lockedTarget = null;
+                missile_lockedTarget = null;
         }
 
         //Firing System
@@ -213,8 +214,8 @@ public class MechAIWeapons : MonoBehaviour {
                     thisMissile.gameObject.transform.parent = MissileSlots[i].transform;
 
                     //If recently lockedTarget
-                    if (lockedTarget && Time.time < lockTimer)
-                        thisMissile.GetComponent<Missile>().lockTarget = lockedTarget;
+                    if (missile_lockedTarget && Time.time < lockTimer)
+                        thisMissile.GetComponent<Missile>().lockTarget = missile_lockedTarget;
                     //Otherwise target part of the environment
                     else if (Physics.Raycast(rayCastPoint.transform.position, -(rayCastPoint.transform.position - rayCastTarget.transform.position).normalized, out hit, 50.0f)) {
                         if (hit.transform.tag == "Environment")
