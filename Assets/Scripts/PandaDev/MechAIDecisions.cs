@@ -5,7 +5,7 @@ using Panda;
 using UnityEditor.Experimental.GraphView;
 using System.Linq;
 
-public class MechAIDecisions : MechAI {
+public partial class MechAIDecisions : MechAI {
 
     public string botName = "Test Bot";
 
@@ -73,63 +73,10 @@ public class MechAIDecisions : MechAI {
 
 
     // Artificial Observation Points
-    public GameObject[] _observationPoints = new GameObject[4];
+    public GameObject[] _observationPoints;
     public int _currentObservationPointIndex;
     public float _nextObservationPointTimer;
     public bool _isLookingLeft;
-
-    void CreateObservationPoints()
-    {
-        _observationPoints[0] = CreateEmptyChild("FrontObservationPoint", Vector3.forward * 5f);   
-        _observationPoints[1] = CreateEmptyChild("LeftObservationPoint", Vector3.left * 5f);       
-        _observationPoints[2] = CreateEmptyChild("BackObservationPoint", Vector3.back * 5f);       
-        _observationPoints[3] = CreateEmptyChild("RightObservationPoint", Vector3.right * 5f);
-    }
-    GameObject CreateEmptyChild(string name, Vector3 localPosition)
-    {
-        Vector3 verticalOffset = new Vector3(0f, 3.35f, 0f);
-        localPosition = localPosition + verticalOffset;
-        GameObject newObject = new GameObject(name);  
-        newObject.transform.parent = this.transform;  
-        newObject.transform.localPosition = localPosition;  
-        return newObject;
-    }
-
-    void View_CuriouseFowardLook()
-    {
-        if (Time.time > _nextObservationPointTimer)
-            NextViewPoint();
-        else
-            mechAIAiming.aimTarget = _observationPoints[_currentObservationPointIndex];
-
-        void NextViewPoint()
-        {
-
-        }
-    }
-
-    /// <summary>
-    /// Rapidly Spins the View in a circle
-    /// </summary>
-    void View_Spin()
-    {
-        if (Time.time > _nextObservationPointTimer)
-            NextViewPoint();
-        else
-            mechAIAiming.aimTarget = _observationPoints[_currentObservationPointIndex];
-
-        void NextViewPoint()
-        {
-            _nextObservationPointTimer = Time.time + 0.2f;
-
-            _currentObservationPointIndex++;
-            if(_currentObservationPointIndex > _observationPoints.Length - 1) 
-                _currentObservationPointIndex = 0;
-        }
-    }
-
-    // mechAIAiming.aimTarget = _observationPoints[0]; // Look Fowards
-
 
     // Assumed Knowledge
     private PickupSpawner[] _allResorucePickupPoints;
@@ -158,7 +105,8 @@ public class MechAIDecisions : MechAI {
         }
 
         Weapons_SetAllBaseWeaponValues();
-        CreateObservationPoints();
+        Start_CreateObservationPoints();
+        Start_MyInitializeVelocityLogic();
     }
 
     // Update is called once per frame
@@ -177,9 +125,17 @@ public class MechAIDecisions : MechAI {
             //attackTarget = mechAIAiming.ClosestTarget(mechAIAiming.currentTargets);
         }
 
+        if (attackTarget)
+        {
+            Update_MyVelocityLogic();
+            Update_TargetVelocityLogic();
+        }
 
+        if (attackTarget)
+        {
+            Movement_MoveTowardsAttackTarget();
+        }
         
-
     }
 
     //private GameObject GetClosestResroucePoint()
@@ -462,6 +418,10 @@ public class MechAIDecisions : MechAI {
     #endregion // Beam End
     #endregion // Weapons End
 
+
+
+
+
     #region Primary Behavior Actions
     //FSM Behaviour: Roam - Roam between random patrol points
     [Task]
@@ -502,6 +462,28 @@ public class MechAIDecisions : MechAI {
         }
     }
 
+    [Task]
+    private void Movement_StandStill()
+    {
+
+    }
+
+    [Task]
+    private void Movement_MoveTowardsAttackTarget()
+    {
+        pursuePoint = attackTarget.transform.position;
+        if (Vector3.Distance(transform.position, pursuePoint) > 3.0f)
+            mechAIMovement.Movement(pursuePoint, 1);        
+    }
+
+    [Task]
+    private void Movement_Flee()
+    {
+
+    }
+
+
+
     //FSM Behaviour: Pursue
     [Task]
     void Pursue() {
@@ -519,6 +501,8 @@ public class MechAIDecisions : MechAI {
             mechState = MechStates.Roam;
         }
     }
+
+
 
     //FSM Behaviour: Flee
     [Task]
@@ -592,6 +576,7 @@ public class MechAIDecisions : MechAI {
     private void GoToNearestActiveResourcePoint() {
 
         View_Spin();
+        //View_CuriouseLookAround();
 
         // Generate New target point
         if (_currentResorucePointTarget == null) 
@@ -641,6 +626,89 @@ public class MechAIDecisions : MechAI {
 
 
     #endregion
+
+
+    void Start_CreateObservationPoints()
+    {
+        _observationPoints = new GameObject[6];
+        _observationPoints[0] = CreateEmptyChild("FrontObservationPoint", Vector3.forward * 5f);
+        _observationPoints[1] = CreateEmptyChild("LeftObservationPoint", Vector3.left * 5f);
+        _observationPoints[2] = CreateEmptyChild("BackObservationPoint", Vector3.back * 5f);
+        _observationPoints[3] = CreateEmptyChild("RightObservationPoint", Vector3.right * 5f);
+        _observationPoints[4] = CreateEmptyChild("FLObservationPoint", new Vector3(-3, 0, 3));
+        _observationPoints[5] = CreateEmptyChild("FRbservationPoint", new Vector3(3, 0, 3));
+    }
+    GameObject CreateEmptyChild(string name, Vector3 localPosition)
+    {
+        Vector3 verticalOffset = new Vector3(0f, 3.35f, 0f);
+        localPosition = localPosition + verticalOffset;
+        GameObject newObject = new GameObject(name);
+        newObject.transform.parent = this.transform;
+        newObject.transform.localPosition = localPosition;
+        return newObject;
+    }
+
+    void View_CuriouseLookAround()
+    {
+        if (Time.time > _nextObservationPointTimer)
+            NextViewPoint();
+        else
+            mechAIAiming.aimTarget = _observationPoints[_currentObservationPointIndex];
+
+        void NextViewPoint()
+        {
+            _nextObservationPointTimer = Time.time + 0.5f;
+
+            if (_isLookingLeft)
+            {
+                // Try Look Right
+                if (_currentObservationPointIndex == 0)
+                    _currentObservationPointIndex = 5; //Set look right
+                else
+                {
+                    _isLookingLeft = false;
+                    _currentObservationPointIndex = 0; // Set look Foward
+                }
+            }
+            else
+            {
+                // Try Look Left
+                if (_currentObservationPointIndex == 0)
+                    _currentObservationPointIndex = 4; //Set look right
+                else
+                {
+                    _isLookingLeft = true;
+                    _currentObservationPointIndex = 0;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rapidly Spins the View in a circle
+    /// </summary>
+    void View_Spin()
+    {
+        if (Time.time > _nextObservationPointTimer)
+            NextViewPoint();
+        else
+            mechAIAiming.aimTarget = _observationPoints[_currentObservationPointIndex];
+
+        void NextViewPoint()
+        {
+            _nextObservationPointTimer = Time.time + 0.2f;
+            _currentObservationPointIndex = (_currentObservationPointIndex + 1) % 4;
+        }
+    }
+
+    void View_LookAtAtackTarget()
+    {
+        mechAIAiming.aimTarget = attackTarget.transform.GetChild(0).gameObject;
+    }
+    // mechAIAiming.aimTarget = _observationPoints[0]; // Look Fowards
+
+
+
 
     #region OLD LOGIC - Pre Behavior Tree Logic
     private void OLD_WeaponsSystem()
