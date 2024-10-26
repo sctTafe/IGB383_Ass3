@@ -24,8 +24,8 @@ tree ("Laser")
 			Laser_Conditional_InRange()
 			Laser_Conditional_InFireAngle()
 			Laser_Conditional_SufficientResources()
-		repeat
-			Laser_Action_Fire()				
+		Laser_Action_Fire()
+							
 
 tree ("Cannons")
 	while
@@ -34,8 +34,8 @@ tree ("Cannons")
 			Cannons_Conditional_InRange()
 			Cannons_Conditional_InFireAngle()
 			Cannons_Conditional_SufficientResources()
-		repeat
-			Cannon_Action_Fire()
+		Cannon_Action_Fire()
+			
 
 tree ("Missiles")
 	while
@@ -44,8 +44,8 @@ tree ("Missiles")
 			Missile_Conditional_InRange()
 			Missile_Conditional_InFireAngle()
 			Missile_Conditional_SufficientResources()
-		repeat
-			Missile_Action_Fire()
+		Missile_Action_Fire()
+			
 
 tree ("Beam")
 	fallback
@@ -55,6 +55,5 @@ tree ("Beam")
 				Beam_Conditional_InRange()
 				Beam_Conditional_InFireAngle()
 				Beam_Conditional_SufficientResources()
-			repeat
-				Beam_Action_Activate()
+			Beam_Action_Activate()		
 		Beam_Action_DeactivateBeam()

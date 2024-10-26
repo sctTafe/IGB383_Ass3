@@ -2,11 +2,27 @@ tree ("Root")
 	repeat
 		mute
 			fallback
-				tree "ResourceHunt"
-				tree "Pursuing"
-				tree "Attacking"
-				tree "Fleeing"
-				tree "Roaming"
+				tree "Hunt"
+				tree "Enguagment_Type1_HoldAndFire"
+
+				//tree "Pursuing"
+				//tree "Attacking"
+				//tree "Fleeing"
+				//tree "Roaming"
+
+
+tree("Hunt")
+	while not Targeting_Conditional_HasAttackTarget()
+		parallel
+			Movement_Action_MoveToClosestTeir2ResourcePoint()
+			View_CuriouseLookAround()
+
+tree("Enguagment_Type1_HoldAndFire")
+	while Targeting_Conditional_HasAttackTarget()
+		parallel
+			Movement_Action_StandStill()
+			View_LookAtAtackTarget()
+			Engagement_Update_HoldAndFireValue()
 
 tree ("Pursuing")
 	while

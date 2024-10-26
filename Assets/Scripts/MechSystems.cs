@@ -6,6 +6,8 @@ public class MechSystems : TakeDamage {
 
     //Primitive Class for controlling destroyable objects health and death effects
 
+    public bool _cheatModeOn;
+
     GameManager gameManager;
 
     public bool bot = false;
@@ -33,6 +35,11 @@ public class MechSystems : TakeDamage {
 
 
     private void Update() {
+
+        if (_cheatModeOn)
+        {
+            health = 2000;
+        }
 
         regenEnergy();
 

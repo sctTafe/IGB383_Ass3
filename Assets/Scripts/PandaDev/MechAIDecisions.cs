@@ -1,9 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using Panda;
-using UnityEditor.Experimental.GraphView;
 using System.Linq;
+using System.Collections;
 
 public partial class MechAIDecisions : MechAI {
 
@@ -45,13 +44,13 @@ public partial class MechAIDecisions : MechAI {
 
     private float _laser_HalfEnergyMaxValue = 375;
 
-    [SerializeField] private float _laser_BaseActivationDistance = 100f;
-    [SerializeField] private float _laser_BaseFireAngle = 35f;
-    [SerializeField] private float _laser_ActivationDistance;
-    [SerializeField] private float _laser_FireAngle;
+    private float _laser_BaseActivationDistance = 200f;
+    private float _laser_BaseFireAngle = 35f;
+    private float _laser_ActivationDistance;
+    private float _laser_FireAngle;
 
     private float _cannon_HalfAmmoMaxValue = 15;
-    private float _cannon_BaseActivationDistance = 100f;
+    private float _cannon_BaseActivationDistance = 200;
     private float _cannon_BaseFireAngle = 30f;
     private float _cannon_ActivationDistance;
     private float _cannon_FireAngle;
@@ -72,15 +71,6 @@ public partial class MechAIDecisions : MechAI {
     private float _beam_FireAngle;
 
 
-    // Artificial Observation Points
-    public GameObject[] _observationPoints;
-    public int _currentObservationPointIndex;
-    public float _nextObservationPointTimer;
-    public bool _isLookingLeft;
-
-    // Assumed Knowledge
-    private PickupSpawner[] _allResorucePickupPoints;
-    [SerializeField] private List<GameObject> _ResourcePoints = new List<GameObject>();
 
 
 
@@ -97,16 +87,11 @@ public partial class MechAIDecisions : MechAI {
         patrolIndex = Random.Range(0, patrolPoints.Length - 1);
         mechAIMovement.Movement(patrolPoints[patrolIndex].transform.position, 1);
 
-        //Get Assumed Knowledge
-        _allResorucePickupPoints = Object.FindObjectsOfType<PickupSpawner>();
-        foreach (var rp in _allResorucePickupPoints) {
-            if (rp.enabled == true)
-                _ResourcePoints.Add(rp.gameObject);
-        }
 
-        Weapons_SetAllBaseWeaponValues();
+        Start_GetResourcePoints();      
         Start_CreateObservationPoints();
         Start_MyInitializeVelocityLogic();
+        Weapons_SetAllBaseWeaponValues();
     }
 
     // Update is called once per frame
@@ -131,29 +116,13 @@ public partial class MechAIDecisions : MechAI {
             Update_TargetVelocityLogic();
         }
 
-        if (attackTarget)
-        {
-            Movement_MoveTowardsAttackTarget();
-        }
+        //if (attackTarget)
+        //{
+        //    Movement_Action_MoveTowardsAttackTarget();
+        //}
         
     }
 
-    //private GameObject GetClosestResroucePoint()
-    //{
-    //    float closestDis = float.MaxValue;
-    //    GameObject currentClosest = null;
-    //    float distToRp;
-    //    foreach (var rp in _ResourcePoints)
-    //    {
-    //        distToRp = Vector3.Distance(this.transform.position, rp.transform.position);
-    //        if (distToRp < closestDis)
-    //        {
-    //            closestDis = distToRp;
-    //            currentClosest = rp;
-    //        }
-    //    }
-    //    return currentClosest;
-    //}
 
 
 
@@ -169,8 +138,9 @@ public partial class MechAIDecisions : MechAI {
         {
             // get
             GameObject tempAttackTarget = mechAIAiming.ClosestTarget(mechAIAiming.currentTargets);
-            if (mechAIAiming.LineOfSight(tempAttackTarget))
-                inLOS.Add(tempAttackTarget);
+            if(tempAttackTarget)
+                if (mechAIAiming.LineOfSight(tempAttackTarget))
+                    inLOS.Add(tempAttackTarget);
         }
         attackTarget = mechAIAiming.ClosestTarget(inLOS);
     }
@@ -252,6 +222,7 @@ public partial class MechAIDecisions : MechAI {
     void Laser_Action_Fire()
     {
         mechAIWeapons.Lasers();
+        Task.current.Succeed();
     }
 
     [Task]
@@ -263,17 +234,15 @@ public partial class MechAIDecisions : MechAI {
     }
 
     [Task]
-    bool Laser_Action_SetBaseWeaponValues() {
+    void Laser_Action_SetBaseWeaponValues() {
         _laser_ActivationDistance = _laser_BaseActivationDistance;
         _laser_FireAngle = _laser_BaseFireAngle;
-        return false; // NOTE: Return fail so that it can exit this branch
     }
 
     [Task]
-    bool Laser_Action_SetConservativeFiringValues() {
+    void Laser_Action_SetConservativeFiringValues() {
         _laser_ActivationDistance = _laser_BaseActivationDistance * _weapons_ConservativeReductionCoefficent;
         _laser_FireAngle = _laser_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
-        return false; // NOTE: Return fail so that it can exit this branch
     }
 
     #endregion
@@ -297,25 +266,26 @@ public partial class MechAIDecisions : MechAI {
     void Cannon_Action_Fire()
     {
         mechAIWeapons.Cannons();
+        Task.current.Succeed();
     }
     [Task]
-    bool Cannon_OverHalfAmmoRemaining() {
+    bool Cannon_Conditional_OverHalfAmmoRemaining() {
         if (mechSystem.shells > _cannon_HalfAmmoMaxValue)
             return true;
         else
             return false;
     }
     [Task]
-    bool Cannon_Action_SetBaseWeaponValues() {
+    void Cannon_Action_SetBaseWeaponValues() {
         _cannon_ActivationDistance = _cannon_BaseActivationDistance;
         _cannon_FireAngle = _cannon_BaseFireAngle;
-        return false; // NOTE: Return fail so that it can exit this branch
+
     }
     [Task]
-    bool Cannon_Action_SetConservativeFiringValues() {
+    void Cannon_Action_SetConservativeFiringValues() {
         _cannon_ActivationDistance = _cannon_BaseActivationDistance * _weapons_ConservativeReductionCoefficent;
         _cannon_FireAngle = _cannon_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
-        return false; // NOTE: Return fail so that it can exit this branch
+
     }
 
     #endregion
@@ -339,9 +309,10 @@ public partial class MechAIDecisions : MechAI {
     void Missile_Action_Fire()
     {
         mechAIWeapons.MissileArray();
+        Task.current.Succeed();
     }
     [Task]
-    bool Missile_OverHalfAmmoRemaining() {
+    bool Missile_Conditional_OverHalfAmmoRemaining() {
         if (mechSystem.missiles > _missiles_HalfAmmoMaxValue)
             return true;
         else
@@ -351,14 +322,14 @@ public partial class MechAIDecisions : MechAI {
     bool Missile_Action_SetBaseWeaponValues() {
         _missile_ActivationDistance = _missile_BaseActivationDistance;
         _missile_FireAngle = _missile_BaseFireAngle;
-        return false; // NOTE: Return fail so that it can exit this branch
+        return true; 
     }
 
     [Task]
     bool Missile_Action_SetConservativeFiringValues() {
         _missile_ActivationDistance = _missile_BaseActivationDistance * _weapons_ConservativeReductionCoefficent;
         _missile_FireAngle = _missile_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
-        return false; // NOTE: Return fail so that it can exit this branch
+        return true; 
     }
 
     #endregion // Missile End
@@ -384,7 +355,7 @@ public partial class MechAIDecisions : MechAI {
     }
     [Task]
     bool Beam_Conditional_OverHalfAmmoRemaining() {
-        if (mechSystem.missiles > _beam_HalfAmmoMaxValue)
+        if (mechSystem.energy > _beam_HalfAmmoMaxValue)
             return true;
         else
             return false;
@@ -393,30 +364,34 @@ public partial class MechAIDecisions : MechAI {
     void Beam_Action_Activate()
     {
         mechAIWeapons.laserBeamAI = true;
+        Task.current.Succeed();
     }
     [Task]
-    bool Beam_Action_DeactivateBeam()
+    void Beam_Action_DeactivateBeam()
     {
         mechAIWeapons.laserBeamAI = false;
-        return false; // NOTE: Returns false to exit fallback the node
+        Task.current.Succeed();
+        //return false; // NOTE: Returns false to exit fallback the node
     }
     [Task]
-    bool Beam_Action_SetBaseWeaponValues() {
+    void Beam_Action_SetBaseWeaponValues() {
         _beam_ActivationDistanceMin = _beam_BaseActivationDistanceMin;
         _beam_ActivationDistanceMax = _beam_BaseActivationDistanceMax;
         _beam_FireAngle = _beam_BaseFireAngle;
-        return false; // NOTE: Return fail so that it can exit this branch
     }
 
     [Task]
-    bool Beam_Action_SetConservativeFiringValues() {
+    void Beam_Action_SetConservativeFiringValues() {
         _beam_ActivationDistanceMin = _beam_BaseActivationDistanceMin * _weapons_ConservativeReductionCoefficent;
         _beam_ActivationDistanceMax = _beam_BaseActivationDistanceMax * _weapons_ConservativeReductionCoefficent;
         _beam_FireAngle = _beam_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
-        return false; // NOTE: Return fail so that it can exit this branch
     }
     #endregion // Beam End
     #endregion // Weapons End
+
+
+
+
 
 
 
@@ -462,25 +437,7 @@ public partial class MechAIDecisions : MechAI {
         }
     }
 
-    [Task]
-    private void Movement_StandStill()
-    {
 
-    }
-
-    [Task]
-    private void Movement_MoveTowardsAttackTarget()
-    {
-        pursuePoint = attackTarget.transform.position;
-        if (Vector3.Distance(transform.position, pursuePoint) > 3.0f)
-            mechAIMovement.Movement(pursuePoint, 1);        
-    }
-
-    [Task]
-    private void Movement_Flee()
-    {
-
-    }
 
 
 
@@ -621,91 +578,9 @@ public partial class MechAIDecisions : MechAI {
         mechAIAiming.RandomAimTarget(patrolPoints);
     }
 
-    #region
 
 
 
-    #endregion
-
-
-    void Start_CreateObservationPoints()
-    {
-        _observationPoints = new GameObject[6];
-        _observationPoints[0] = CreateEmptyChild("FrontObservationPoint", Vector3.forward * 5f);
-        _observationPoints[1] = CreateEmptyChild("LeftObservationPoint", Vector3.left * 5f);
-        _observationPoints[2] = CreateEmptyChild("BackObservationPoint", Vector3.back * 5f);
-        _observationPoints[3] = CreateEmptyChild("RightObservationPoint", Vector3.right * 5f);
-        _observationPoints[4] = CreateEmptyChild("FLObservationPoint", new Vector3(-3, 0, 3));
-        _observationPoints[5] = CreateEmptyChild("FRbservationPoint", new Vector3(3, 0, 3));
-    }
-    GameObject CreateEmptyChild(string name, Vector3 localPosition)
-    {
-        Vector3 verticalOffset = new Vector3(0f, 3.35f, 0f);
-        localPosition = localPosition + verticalOffset;
-        GameObject newObject = new GameObject(name);
-        newObject.transform.parent = this.transform;
-        newObject.transform.localPosition = localPosition;
-        return newObject;
-    }
-
-    void View_CuriouseLookAround()
-    {
-        if (Time.time > _nextObservationPointTimer)
-            NextViewPoint();
-        else
-            mechAIAiming.aimTarget = _observationPoints[_currentObservationPointIndex];
-
-        void NextViewPoint()
-        {
-            _nextObservationPointTimer = Time.time + 0.5f;
-
-            if (_isLookingLeft)
-            {
-                // Try Look Right
-                if (_currentObservationPointIndex == 0)
-                    _currentObservationPointIndex = 5; //Set look right
-                else
-                {
-                    _isLookingLeft = false;
-                    _currentObservationPointIndex = 0; // Set look Foward
-                }
-            }
-            else
-            {
-                // Try Look Left
-                if (_currentObservationPointIndex == 0)
-                    _currentObservationPointIndex = 4; //Set look right
-                else
-                {
-                    _isLookingLeft = true;
-                    _currentObservationPointIndex = 0;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Rapidly Spins the View in a circle
-    /// </summary>
-    void View_Spin()
-    {
-        if (Time.time > _nextObservationPointTimer)
-            NextViewPoint();
-        else
-            mechAIAiming.aimTarget = _observationPoints[_currentObservationPointIndex];
-
-        void NextViewPoint()
-        {
-            _nextObservationPointTimer = Time.time + 0.2f;
-            _currentObservationPointIndex = (_currentObservationPointIndex + 1) % 4;
-        }
-    }
-
-    void View_LookAtAtackTarget()
-    {
-        mechAIAiming.aimTarget = attackTarget.transform.GetChild(0).gameObject;
-    }
-    // mechAIAiming.aimTarget = _observationPoints[0]; // Look Fowards
 
 
 
