@@ -8,24 +8,19 @@ tree("Root")
 
 // Tree for controlling Ammo Conservation
 tree ("AmmoConservation")
-		//parallel
-			//mute
-				//tree "LaserConservationMode"
-		
+		parallel
+			mute
+				tree "LaserConservationMode"	
 			mute
 				tree "CannonConservationMode"
-
-	//		repeat
-	//			mute
-	//				tree "MissileConservationMode"
-	//		repeat
-	//			mute
-	// tree "BeamConservationMode"
+			mute
+				tree "MissileConservationMode"
+			mute
+				tree "BeamConservationMode"
 
 // Tree for controlling when to fire weapons
 tree ("WeaponsFire")
 	while Targeting_Conditional_HasAttackTarget()
-		//repeat
 			parallel
 				mute
 					tree "Laser"
@@ -36,8 +31,8 @@ tree ("WeaponsFire")
 				mute
 					tree "Beam"
 
-
-tree ("CannonConservationMode")
+// Ammo Conservation
+tree ("CannonConservationMode_Type2")
 	parallel
 		mute
 			while Cannon_Conditional_OverHalfAmmoRemaining()				
@@ -46,11 +41,12 @@ tree ("CannonConservationMode")
 			while not Cannon_Conditional_OverHalfAmmoRemaining()	
 				Cannon_Action_SetConservativeFiringValues()
 
+tree ("CannonConservationMode")
+	fallback
+		while Cannon_Conditional_OverHalfAmmoRemaining()				
+			Cannon_Action_SetBaseWeaponValues()
+		Cannon_Action_SetConservativeFiringValues()
 
-
-
-
-// Ammo Conservation
 tree ("LaserConservationMode")
 	fallback
 		while Laser_Conditional_OverHalfAmmoRemaining()				
@@ -69,6 +65,7 @@ tree ("BeamConservationMode")
 			Beam_Action_SetBaseWeaponValues()
 		Beam_Action_SetConservativeFiringValues()
 
+// Weapons Fire
 tree ("Laser")
 	while
 		sequence
