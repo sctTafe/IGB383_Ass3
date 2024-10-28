@@ -2,10 +2,20 @@
 using UnityEngine;
 using Panda;
 using System.Linq;
+using System.Net.NetworkInformation;
 
 public partial class MechAIDecisions : MechAI {
 
-    public string botName = "Test Bot";
+    public string botName = "Scotts MurderBot";
+
+    // NOTE: Not sure if this is permissible for the tournament, it felt resonable to be able to shoot at already engaged enemies, 
+    // but it can be disabled if needed. It only affects firing at known targets already assigned as the 'attackTarget'. 
+    // TLDR: Allows the bot to shoot at fleeing enemies or enemies that have shot at it beyond 100f distance.
+    bool setupCondition_LOSPlus100 = true;
+
+    // Turn this off, when not needed
+    bool isUpdatingDebugginFunction = true;
+
 
     //Links to Mech AI Systems
     MechSystems mechSystem;
@@ -21,6 +31,7 @@ public partial class MechAIDecisions : MechAI {
         Flee
     }
     public MechStates mechState;
+
 
     //Roam Variables
     public GameObject[] patrolPoints;
@@ -39,21 +50,25 @@ public partial class MechAIDecisions : MechAI {
     //Flee Variables
     public GameObject fleeTarget;
 
-    private float _weapons_ConservativeReductionCoefficent = 0.75f;
+    
 
+    private float _health_MaxValue = 2000;
+
+    private float _laser_EnergyMaxValue = 750;
     private float _laser_HalfEnergyMaxValue = 375;
-
-    private float _laser_BaseActivationDistance = 200f;
+    private float _laser_BaseActivationDistance = 175f;     //NOTE: 'In Frustum' Check limited to 100f; if setupCondition_LOSPlus100 true, can hit fleeing enemies
     private float _laser_BaseFireAngle = 35f;
     private float _laser_ActivationDistance;
     private float _laser_FireAngle;
 
+    private float _cannon_AmmoMaxValue = 30;
     private float _cannon_HalfAmmoMaxValue = 15;
-    private float _cannon_BaseActivationDistance = 200;
+    private float _cannon_BaseActivationDistance = 150;     //NOTE: 'In Frustum' Check limited to 100f, Cannon Ammo More Valuble then Energy, so reduced to 150
     private float _cannon_BaseFireAngle = 30f;
     private float _cannon_ActivationDistance;
     private float _cannon_FireAngle;
 
+    private float _missiles_AmmoMaxValue = 54;
     private float _missiles_HalfAmmoMaxValue = 27;
     private float _missile_BaseActivationDistance = 50f;
     private float _missile_BaseFireAngle = 60f;
@@ -68,6 +83,9 @@ public partial class MechAIDecisions : MechAI {
     private float _beam_ActivationDistanceMin;
     private float _beam_ActivationDistanceMax;
     private float _beam_FireAngle;
+
+    private float _weapons_ConservativeReductionCoefficent = 0.75f;
+
 
 
     private float shells_temp;
@@ -117,16 +135,140 @@ public partial class MechAIDecisions : MechAI {
             Update_TargetVelocityLogic();
         }
 
-        //if (attackTarget)
-        //{
-        //    Movement_Action_MoveTowardsAttackTarget();
-        //}
-        //Debug.Log("Update, mechSystem.shells = " + mechSystem.shells);
-        //shells_temp = mechSystem.shells;
+        // Only For Debugging
+        if(isUpdatingDebugginFunction)
+            Update_DebuggingValues();
+
+    }
+
+    // Visual Debugging
+    private void OnDrawGizmosSelected()
+    {
+        // Draw Resource Points
+        foreach (var point in _RankedResourcePointsList)
+        {
+            if (point.Item1 != null)
+            {
+                Gizmos.color = GetColorByTier(point.Item2);
+                Gizmos.DrawWireSphere(point.Item1.transform.position, 5.0f); 
+            }
+        }
+
+        Color GetColorByTier(ResourceRiskTeir tier)
+        {
+            switch (tier)
+            {
+                case ResourceRiskTeir.low: return Color.green;
+                case ResourceRiskTeir.med: return Color.yellow;
+                case ResourceRiskTeir.high: return Color.red;
+                default: return Color.white;
+            }
+        }
+    }
+
+
+    //Method allowing AI Mech to acquire target after taking damage from enemy
+    public override void TakingFire(int origin)
+    {
+
+        //If not own damage and no current attack target, find attack target
+        if (origin != mechSystem.ID && !attackTarget)
+        {
+            foreach (GameObject target in mechAIAiming.targets)
+            {
+                if (target)
+                {
+                    if (origin == target.GetComponent<MechSystems>().ID)
+                    {
+                        attackTarget = target;
+                        mechAIAiming.aimTarget = target;
+                    }
+                }
+            }
+        }
     }
 
 
 
+
+    #region Debugging Values
+    [Header("Debugging Values")]
+    public float distanceToAtkTarget;
+    public bool isOnResourcePoint;
+    public float targetRelativeVelocity;
+
+    private void Update_DebuggingValues()
+    {
+        distanceToAtkTarget = Utility_DistanceToAtackTarget();
+        isOnResourcePoint = Utility_IsCurrentlyOnAResorucePoint();
+        targetRelativeVelocity = _currentVelocityOfTargetTowardsMe;
+
+    }
+
+    #endregion // END Debugging Values
+
+    #region Utility Functions
+
+    private float Utility_DistanceToAtackTarget()
+    {
+        if (!attackTarget)
+            return float.MaxValue;
+        else
+            return Vector3.Distance(this.transform.position, attackTarget.transform.position);
+    }
+    /// <summary>
+    /// Checks if an object(GameObject) is in LOS of this bot
+    /// </summary>
+    private bool Utility_IsGameObjectInLOS(GameObject Go)
+    {
+        if (setupCondition_LOSPlus100) 
+        {
+            return LineOfSight(Go);
+        }
+        else
+        {
+            return mechAIAiming.LineOfSight(Go);
+        }
+            
+        bool LineOfSight(GameObject thisTarget)
+        {
+
+            //Need to correct for wonky pivot point - Mech model pivot at base instead of centre
+            Vector3 correction = thisTarget.transform.GetChild(0).gameObject.transform.position;
+            Vector3 pointAboveMech = this.transform.position + Vector3.up * 5f + Vector3.forward * 5f;
+            RaycastHit hit;
+            if (Physics.Raycast(pointAboveMech, -(pointAboveMech - correction).normalized, out hit, 200f))
+            {
+
+                Debug.DrawLine(transform.position, hit.point, Color.magenta);
+
+                if (hit.transform.gameObject.tag == "Player" && hit.transform.gameObject != this.gameObject)
+                {
+                    return true;
+                }
+                else
+                    return false;
+            }
+            else
+                return false;
+        }
+    }
+
+    
+    private bool Utility_IsCurrentlyOnAResorucePoint()
+    {
+        bool isOnAResorucePoint = false;
+        foreach (var rp in _ResourcePoints)
+        {
+            if(Vector3.Distance(rp.transform.position, this.transform.position) < 1)
+                isOnAResorucePoint = true;
+        }
+        return isOnAResorucePoint;
+    }
+
+
+    
+    #endregion //END Utility Functions
 
     // Preditive Firing
 
@@ -149,7 +291,7 @@ public partial class MechAIDecisions : MechAI {
 
 
 
-    #region Weapons
+    #region Targeting & Weapons
 
     private void Start_SetAllBaseWeaponValues()
     {
@@ -189,6 +331,22 @@ public partial class MechAIDecisions : MechAI {
 
     #region Targeting
     [Task]
+    bool Targeting_Conditional_AttackTargetOver100FDistance()
+    {
+        if(Utility_DistanceToAtackTarget() > 99f)
+            return true;
+        return false;
+    }
+
+    [Task]
+    bool Targeting_Conditional_AttackTargetInLOS()
+    {
+        if(!attackTarget) 
+            return false;
+        return Utility_IsGameObjectInLOS(attackTarget);
+    }
+
+    [Task]
     bool Targeting_Action_TryGetClosestTarget()
     {
         attackTarget = mechAIAiming.ClosestTarget(mechAIAiming.currentTargets);
@@ -203,12 +361,12 @@ public partial class MechAIDecisions : MechAI {
     {
         if (attackTarget != null)
         {
-            Debug.Log("Targeting_Conditional_HasAttackTarget: TRUE");
+            //Debug.Log("Targeting_Conditional_HasAttackTarget: TRUE");
             return true;
         }
         else
         {
-            Debug.Log("Targeting_Conditional_HasAttackTarget: FALLSE");
+            //Debug.Log("Targeting_Conditional_HasAttackTarget: FALLSE");
             return false;
         }
             
@@ -263,12 +421,12 @@ public partial class MechAIDecisions : MechAI {
         
         if (mechSystem.energy > _laser_HalfEnergyMaxValue)
         {
-            Debug.Log("Laser_Conditional_OverHalfAmmoRemaining: TRUE");
+            //Debug.Log("Laser_Conditional_OverHalfAmmoRemaining: TRUE");
             return true;
         }         
         else
         {
-            Debug.Log("Laser_Conditional_OverHalfAmmoRemaining: FALSE");
+            //Debug.Log("Laser_Conditional_OverHalfAmmoRemaining: FALSE");
             return false;
         }
             
@@ -317,52 +475,30 @@ public partial class MechAIDecisions : MechAI {
         
         if (mechSystem.shells > _cannon_HalfAmmoMaxValue)
         {
-            Debug.Log("Cannon_Conditional_OverHalfAmmoRemaining - mechSystem.shells = " + mechSystem.shells + " Return TRUE");
+            //Debug.Log("Cannon_Conditional_OverHalfAmmoRemaining - mechSystem.shells = " + mechSystem.shells + " Return TRUE");
             return true;
         }
         else
         {
-            Debug.Log("Cannon_Conditional_OverHalfAmmoRemaining - mechSystem.shells = " + mechSystem.shells + " Return FALSE");
+            //Debug.Log("Cannon_Conditional_OverHalfAmmoRemaining - mechSystem.shells = " + mechSystem.shells + " Return FALSE");
             return false;
         }
             
     }
     [Task]
     void Cannon_Action_SetBaseWeaponValues() {
-        Debug.Log("Cannon_Action_SetBaseWeaponValues");
+        //Debug.Log("Cannon_Action_SetBaseWeaponValues");
         _cannon_ActivationDistance = _cannon_BaseActivationDistance;
         _cannon_FireAngle = _cannon_BaseFireAngle;
         Task.current.Succeed();
-
-        //if (Cannon_Conditional_OverHalfAmmoRemaining())
-        //{
-        //    _cannon_ActivationDistance = _cannon_BaseActivationDistance;
-        //    _cannon_FireAngle = _cannon_BaseFireAngle;
-        //    Task.current.Succeed();
-        //}
-        //else
-        //{
-        //    Task.current.Fail();
-        //}
     }
 
     [Task]
     void Cannon_Action_SetConservativeFiringValues() {
-        Debug.Log("Cannon_Action_SetBaseWeaponValues");
+        //Debug.Log("Cannon_Action_SetBaseWeaponValues");
         _cannon_ActivationDistance = _cannon_BaseActivationDistance * _weapons_ConservativeReductionCoefficent;
         _cannon_FireAngle = _cannon_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
         Task.current.Succeed();
-
-        //if (!Cannon_Conditional_OverHalfAmmoRemaining())
-        //{
-        //    _cannon_ActivationDistance = _cannon_BaseActivationDistance * _weapons_ConservativeReductionCoefficent;
-        //    _cannon_FireAngle = _cannon_BaseFireAngle * _weapons_ConservativeReductionCoefficent;
-        //    Task.current.Succeed();
-        //}
-        //else
-        //{
-        //    Task.current.Fail();
-        //}
     }
 
     #endregion
@@ -446,9 +582,11 @@ public partial class MechAIDecisions : MechAI {
     [Task]
     void Beam_Action_DeactivateBeam()
     {
-        mechAIWeapons.laserBeamAI = false;
+        // only deactivate it if its already On
+        if(mechAIWeapons.laserBeamAI == true)
+            mechAIWeapons.laserBeamAI = false;
+        
         Task.current.Succeed();
-        //return false; // NOTE: Returns false to exit fallback the node
     }
     [Task]
     void Beam_Action_SetBaseWeaponValues() {
@@ -466,7 +604,7 @@ public partial class MechAIDecisions : MechAI {
         Task.current.Succeed();
     }
     #endregion // Beam End
-    #endregion // Weapons End
+    #endregion // Targeting & Weapons End
 
 
 
@@ -476,7 +614,7 @@ public partial class MechAIDecisions : MechAI {
 
 
 
-    #region Primary Behavior Actions
+    #region OLD LOGIC - Primary Behavior Actions
     //FSM Behaviour: Roam - Roam between random patrol points
     [Task]
     private void Roam() {
@@ -515,10 +653,6 @@ public partial class MechAIDecisions : MechAI {
             pursuePoint = attackTarget.transform.position;
         }
     }
-
-
-
-
 
     //FSM Behaviour: Pursue
     [Task]
@@ -560,23 +694,8 @@ public partial class MechAIDecisions : MechAI {
             mechAIMovement.Movement(patrolPoints[patrolIndex].transform.position, 1);
         }
     }
-    #endregion
 
-    //Method allowing AI Mech to acquire target after taking damage from enemy
-    public override void TakingFire(int origin) {
 
-        //If not own damage and no current attack target, find attack target
-        if (origin != mechSystem.ID && !attackTarget) {
-            foreach (GameObject target in mechAIAiming.targets) {
-                if (target) {
-                    if (origin == target.GetComponent<MechSystems>().ID) {
-                        attackTarget = target;
-                        mechAIAiming.aimTarget = target;
-                    }
-                }
-            }
-        }
-    }
 
     //Method for checking heuristic status of Mech to determine if Fleeing is necessary
     [Task]
@@ -592,8 +711,7 @@ public partial class MechAIDecisions : MechAI {
 
 
     bool _isWalkingToResourcePoint;
-    
-    public GameObject _currentResorucePointTarget;
+    GameObject _currentResorucePointTarget;
 
 
     [Task]
@@ -657,12 +775,7 @@ public partial class MechAIDecisions : MechAI {
         mechAIAiming.RandomAimTarget(patrolPoints);
     }
 
-
-
-
-
-
-
+    #endregion //OLD LOGIC - Early Behaviro Tree
 
     #region OLD LOGIC - Pre Behavior Tree Logic
     private void OLD_WeaponsSystem()

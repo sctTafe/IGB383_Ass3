@@ -20,7 +20,8 @@ tree ("AmmoConservation")
 
 // Tree for controlling when to fire weapons
 tree ("WeaponsFire")
-	while Targeting_Conditional_HasAttackTarget()
+	fallback
+		while Targeting_Conditional_HasAttackTarget()		
 			parallel
 				mute
 					tree "Laser"
@@ -30,6 +31,8 @@ tree ("WeaponsFire")
 					tree "Missiles"
 				mute
 					tree "Beam"
+		// If No Target deactivate Beam
+		Beam_Action_DeactivateBeam()
 
 // Ammo Conservation
 tree ("CannonConservationMode_Type2")
@@ -71,17 +74,37 @@ tree ("Laser")
 		sequence
 			Laser_Conditional_InRange()			
 			Laser_Conditional_SufficientResources()
-			Laser_Conditional_InFireAngle()
-		Laser_Action_Fire()
-							
+		fallback
+			// In Frustum Fiering
+			while Laser_Conditional_InFireAngle()
+				Laser_Action_Fire()
+
+			// Long Range Sniping (Can be disabled in MechAIDecisions -> setupCondition_LOSPlus100)		
+			while			
+				sequence
+					Movement_Conditional_IsAgentMovementStopped()
+					Targeting_Conditional_AttackTargetOver100FDistance()
+					Targeting_Conditional_AttackTargetInLOS()				
+				Laser_Action_Fire()
+										
 tree ("Cannons")
 	while
 		sequence
 			Cannons_Conditional_InRange()
-			Cannons_Conditional_InFireAngle()
 			Cannons_Conditional_SufficientResources()
-		Cannon_Action_Fire()
-			
+		fallback
+			// In Frustum Fiering
+			while Cannons_Conditional_InFireAngle()
+				Cannon_Action_Fire()
+
+			// Long Range Sniping (Can be disabled in MechAIDecisions -> setupCondition_LOSPlus100)		
+			while
+				sequence
+					Movement_Conditional_IsAgentMovementStopped()
+					Targeting_Conditional_AttackTargetOver100FDistance()
+					Targeting_Conditional_AttackTargetInLOS()
+				Cannon_Action_Fire()
+					
 tree ("Missiles")
 	while
 		sequence

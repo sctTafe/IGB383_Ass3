@@ -1,15 +1,87 @@
 tree ("Root")
 	repeat
 		mute
+			tree("CombatFitnessLayer")
+
+			//fallback
+				//tree "Hunt"
+				//tree "Enguagment_Type1_HoldAndFire"
+				//tree "Enguagment_MoveFowardToOptimalDistance"
+				
+
+// - Combat Fitness Layer -
+tree("CombatFitnessLayer")
+	sequence
+		Engagement_Update_CombatFitnessHeuristics() // Will Always Succeed
+		
+		// Choose Combat Fitness Branch
+		fallback
+		
+			// Fully Combat Ready - Can be Aggressive 
+			while		
+				fallback
+					Enguagement_Conditional_IsCombatFitness_Max()
+					Enguagement_Conditional_IsCombatFitness_Good()
+				tree "InOutCombatLayer_FitnessGood"
+
+			// Withdrawing Combat - Defensive Stance
+			while Enguagement_Conditional_IsCombatFitness_OK()
+				tree "InOutCombatLayer_FitnessOk"
+
+			// Prioritise Survival at this flag
+			while Enguagement_Conditional_IsCombatFitness_Bad()
+				tree "InOutCombatLayer_FitnessBad"
+
+// - In/Out Combat Layer
+tree("InOutCombatLayer_FitnessGood")
+	fallback
+		// Aggressive Attack
+		while Targeting_Conditional_HasAttackTarget()
+			tree "Engagement_CombatPlan1"
+		// Hunt For Target
+		tree "Hunt"
+
+tree("InOutCombatLayer_FitnessOk")
+	fallback
+		// Stand Ground Attack
+		while Targeting_Conditional_HasAttackTarget()
+			tree "InCombat_MoveToResourcePoint"
+		// Stay At Resource Point & Scan For Target
+		tree "OutofCombat_MoveToAndStayAtResourcePointAndScan"
+
+tree("InOutCombatLayer_FitnessBad")
+	fallback
+		// Escape
+		while Targeting_Conditional_HasAttackTarget()
 			fallback
-				tree "Hunt"
-				tree "Enguagment_Type1_HoldAndFire"
+				// If On A Resource Point, Stay Put
+				while Enguagement_Conditional_IsOnResourcePoint()
+					parallel
+						Movement_Action_StandStill()
+						View_LookAtAtackTarget()
+				// Else Escape
+				tree "InCombat_MoveToResourcePoint"
+		// Recover at Resource Point
+		tree "OutofCombat_MoveToAndStayAtResourcePointAndScan"
 
-				//tree "Pursuing"
-				//tree "Attacking"
-				//tree "Fleeing"
-				//tree "Roaming"
 
+
+// - Complex Actions -
+
+tree("Engagement_CombatPlan1")
+	fallback
+		while Engagement_Update_HoldAndFireValue()
+			parallel
+				Movement_Action_StandStill()
+				View_LookAtAtackTarget()
+		while Enguagement_Conditional_IsTargetMovingTowardsMe()
+			parallel
+				Movement_Action_StandStill()
+				View_LookAtAtackTarget()
+		tree "Enguagment_MoveFowardToOptimalDistance"
+
+
+// - Actions -
 
 tree("Hunt")
 	while not Targeting_Conditional_HasAttackTarget()
@@ -17,13 +89,56 @@ tree("Hunt")
 			Movement_Action_MoveToClosestTeir2ResourcePoint()
 			View_CuriouseLookAround()
 
+tree("Enguagment_MoveFowardToOptimalDistance")
+	while Targeting_Conditional_HasAttackTarget()
+		sequence
+			Movement_Action_MoveTowardsAttachTarget_ToOptimalAttackRange()
+			View_LookAtAtackTarget()
+
+
+tree("InCombat_MoveToResourcePoint")
+	fallback
+		while Enguagement_Conditional_IsOnResourcePoint()
+			parallel
+				Movement_Action_StandStill()
+				View_LookAtAtackTarget()
+		parallel
+			Movement_Action_MoveToClosestTeir2ResourcePoint()
+			View_LookAtAtackTarget()
+
+tree("OutofCombat_MoveToAndStayAtResourcePointAndScan")
+	fallback
+		while Enguagement_Conditional_IsOnResourcePoint()
+			parallel
+				Movement_Action_StandStill()
+				View_Spin()			
+		parallel
+			Movement_Action_MoveToClosestTeir2ResourcePoint()
+			View_CuriouseLookAround()
+	
+	
+
+
+
+
 tree("Enguagment_Type1_HoldAndFire")
 	while Targeting_Conditional_HasAttackTarget()
-		parallel
+		sequence
 			Movement_Action_StandStill()
 			View_LookAtAtackTarget()
 			Engagement_Update_HoldAndFireValue()
 
+tree("Enguagment_Pursue")
+	while Targeting_Conditional_HasAttackTarget()
+		sequence
+			Movement_Action_MoveTowardsAttackTarget_Close()
+			View_LookAtAtackTarget()
+
+
+
+
+
+// - Old Actions - 
 tree ("Pursuing")
 	while
 		sequence

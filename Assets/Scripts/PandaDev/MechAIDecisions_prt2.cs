@@ -2,7 +2,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public partial class MechAIDecisions
 {
@@ -12,14 +14,17 @@ public partial class MechAIDecisions
     private int _myVelocityCurrentIndex = 0;
     [SerializeField] private Vector3 _myCurrentAvgVelocity;
 
-    private Vector3[] _targetPreviousPositions = new Vector3[10]; 
+    private Vector3[] _targetPreviousPositions = new Vector3[10];
     private int _targetVelocityCurrentIndex = 0;
     [SerializeField] private GameObject _targetVelocityGO;                   // the game object of the current velocity tracking object 
     [SerializeField] private Vector3 _targetCurrentAvgVelocity;
+
+    float _currentVelocityOfTargetTowardsMe;
+
     private void Start_MyInitializeVelocityLogic()
     {
         for (int i = 0; i < _myPreviousPositions.Length; i++)
-            _myPreviousPositions[i] = transform.position;       
+            _myPreviousPositions[i] = transform.position;
     }
 
     private void InitalizeTargetVelocity()
@@ -34,13 +39,13 @@ public partial class MechAIDecisions
     private void Update_TargetVelocityLogic()
     {
         // Guards
-        if(_targetVelocityGO == null)
+        if (_targetVelocityGO == null)
         {
             _targetVelocityGO = attackTarget;
             InitalizeTargetVelocity();
             return;
         }
-        if(attackTarget != _targetVelocityGO)
+        if (attackTarget != _targetVelocityGO)
         {
             _targetVelocityGO = attackTarget;
             InitalizeTargetVelocity();
@@ -62,7 +67,7 @@ public partial class MechAIDecisions
             totalVelocity += (_targetPreviousPositions[i + 1] - _targetPreviousPositions[i]) / Time.deltaTime;
         }
         // Average the total velocity over the last 9 intervals
-        _targetCurrentAvgVelocity = totalVelocity / (_targetPreviousPositions.Length - 1);        
+        _targetCurrentAvgVelocity = totalVelocity / (_targetPreviousPositions.Length - 1);
     }
     private void Update_MyVelocityLogic()
     {
@@ -86,26 +91,12 @@ public partial class MechAIDecisions
 
     }
 
-
-
-    private Vector3 CalculateAverageVelocity(ref Vector3[] prePos)
+    private bool Velocity_IsAttackTargetMovingTowardsMe()
     {
-        Vector3 sum = Vector3.zero;
-
-        for (int i = 0; i < prePos.Length; i++)
-        {
-            int nextIndex = (i + 1) % prePos.Length;
-            // Velocity between two consecutive positions
-            Vector3 velocity = (prePos[nextIndex] - prePos[i]) / Time.deltaTime;
-            sum += velocity;
-        }
-
-        sum.y = 0;
-
-        // Return the average velocity over 3 frames
-        return sum / prePos.Length;
+        Vector3 directionFromTargetToMe = this.transform.position - attackTarget.transform.position;
+        _currentVelocityOfTargetTowardsMe = Vector3.Dot(_targetCurrentAvgVelocity, directionFromTargetToMe.normalized);
+        return _currentVelocityOfTargetTowardsMe > 0;
     }
-
 
 
     #endregion
@@ -116,7 +107,7 @@ public partial class MechAIDecisions
     private PickupSpawner[] _allResourcePickupPoints;
     [SerializeField] private List<GameObject> _ResourcePoints = new List<GameObject>();
     [SerializeField]
-    private List<Tuple<GameObject,ResourceRiskTeir>> _RankedResourcePointsList = new List<Tuple<GameObject, ResourceRiskTeir>>();
+    private List<Tuple<GameObject, ResourceRiskTeir>> _RankedResourcePointsList = new List<Tuple<GameObject, ResourceRiskTeir>>();
     enum ResourceRiskTeir
     {
         low,
@@ -142,7 +133,7 @@ public partial class MechAIDecisions
             {
                 center += rp.transform.position;
             }
-            center = center/_ResourcePoints.Count;
+            center = center / _ResourcePoints.Count;
 
             // Sort by distance to center
             _ResourcePoints.Sort((a, b) =>
@@ -157,9 +148,9 @@ public partial class MechAIDecisions
                 float distance = Vector3.Distance(resourcePoint.transform.position, center);
 
                 ResourceRiskTeir riskTier;
-                if (i < pointCount * 0.21f)
+                if (i < pointCount * 0.18f)
                     riskTier = ResourceRiskTeir.high;
-                else if (i < pointCount * 0.42f)
+                else if (i < pointCount * 0.55f)
                     riskTier = ResourceRiskTeir.med;
                 else
                     riskTier = ResourceRiskTeir.low;
@@ -169,7 +160,7 @@ public partial class MechAIDecisions
             }
         }
     }
-    
+
 
     private GameObject GetNextClosestTeiredResourcePoint(ResourceRiskTeir teir)
     {
@@ -223,6 +214,14 @@ public partial class MechAIDecisions
     }
     #endregion
 
+    #region CurrentCombatStats
+    private void Update_CheckForResorucePointTrigger()
+    {
+
+    }
+
+    #endregion
+
     #region View
     [Task]
     void View_CuriouseLookAround()
@@ -259,6 +258,7 @@ public partial class MechAIDecisions
                 }
             }
         }
+        Task.current.Succeed();
     }
 
     /// <summary>
@@ -277,55 +277,102 @@ public partial class MechAIDecisions
             _nextObservationPointTimer = Time.time + 0.2f;
             _currentObservationPointIndex = (_currentObservationPointIndex + 1) % 4;
         }
+        Task.current.Succeed();
     }
     [Task]
     void View_LookAtAtackTarget()
     {
-        mechAIAiming.aimTarget = attackTarget.transform.GetChild(0).gameObject;
+        if (mechAIAiming.aimTarget)
+        {
+            mechAIAiming.aimTarget = attackTarget.transform.GetChild(0).gameObject;
+            Task.current.Succeed();
+        }
+        else
+        {
+            Task.current.Fail();
+        }
+        Task.current.Succeed();
     }
     // mechAIAiming.aimTarget = _observationPoints[0]; // Look Fowards
     #endregion // END View
 
-
     #region Movement
-
+    /// <summary>
+    /// Check if the nav agent for this bot is stopped
+    /// </summary>
+    [Task]
+    private bool Movement_Conditional_IsAgentMovementStopped()
+    {
+        return mechAIMovement.agent.isStopped;
+    }
 
     [Task]
     private void Movement_Action_MoveToClosestTeir2ResourcePoint()
     {
         if (_currentResorucePointTarget == null || Vector3.Distance(this.transform.position, _currentResorucePointTarget.transform.position) < 1f)
         {
-            _currentResorucePointTarget = GetNextClosestTeiredResourcePoint(ResourceRiskTeir.med); 
+            _currentResorucePointTarget = GetNextClosestTeiredResourcePoint(ResourceRiskTeir.med);
         }
 
         // Move to Resoruce Point
         if (_currentResorucePointTarget != null)
         {
             if (Vector3.Distance(this.transform.position, _currentResorucePointTarget.transform.position) > 2f)
+            {
                 mechAIMovement.Movement(_currentResorucePointTarget.transform.position, 1);
+                mechAIMovement.agent.isStopped = false;
+            }
             else
                 _currentResorucePointTarget = null;
         }
+        Task.current.Succeed();
     }
-    
+
     [Task]
     private void Movement_Action_StandStill()
     {
-        Debug.Log(this.gameObject.name + "Movement_Action_StandStill - Stop Moving");
-        mechAIMovement.Movement(this.transform.position, 0); //Set to current postion
+        //Debug.Log(this.gameObject.name + "Movement_Action_StandStill - Stop Moving");       
+        mechAIMovement.Movement(this.transform.position, 0); //Set to current postion      
+        mechAIMovement.agent.isStopped = true;
+
+        Task.current.Succeed();
     }
 
     [Task]
-    private void Movement_Action_MoveTowardsAttackTarget()
+    private void Movement_Action_MoveTowardsAttackTarget_Close()
     {
-        Debug.Log(this.gameObject.name + ": Movement_Action_MoveTowardsAttackTarget");
+        //Debug.Log(this.gameObject.name + ": Movement_Action_MoveTowardsAttackTarget");
         pursuePoint = attackTarget.transform.position;
-        if (Vector3.Distance(transform.position, pursuePoint) > 3.0f)
+        if (Vector3.Distance(transform.position, pursuePoint) > 4.5f)
         {
-            mechAIMovement.Movement(pursuePoint, 2); // Set to postion of attackTarget
-
+            mechAIMovement.Movement(pursuePoint, 4); // Set to postion of attackTarget + 5f (stop close, but not to close)
+            mechAIMovement.agent.isStopped = false;
         }
+        else
+        {
+            mechAIMovement.agent.isStopped = true;
+        }
+        Task.current.Succeed();
+    }
 
+    [Task]
+    private void Movement_Action_MoveTowardsAttachTarget_ToOptimalAttackRange()
+    {
+        //Debug.Log(this.gameObject.name + ": Movement_Action_MoveTowardsAttackTarget");
+        pursuePoint = attackTarget.transform.position;
+
+        //NOTE: <50 is optimal, but the is momentem / delay, that will carry the bot over the line, so the
+        //optimal strategy it to stop befor any other bot
+        if (Vector3.Distance(transform.position, pursuePoint) > 51f)
+        {
+            mechAIMovement.Movement(pursuePoint, 0);
+            mechAIMovement.agent.isStopped = false;
+        }
+        else
+        {
+            mechAIMovement.agent.isStopped = true;
+        }
+        Task.current.Succeed();
     }
 
     [Task]
@@ -340,13 +387,101 @@ public partial class MechAIDecisions
     #endregion // END MOVEMENT
 
     #region Engagement Heuristics
-    float holdAndFire;
-    
+
+    public CombatFitnessTier combatFitness;
+    float sitRepTimer;
+    GameObject currentCFGO;
+    public enum CombatFitnessTier
+    {
+        max,    // Max - Recharge Till This FLag
+        good,   // Good - Fully Combat Ready - Can be Aggressive 
+        ok,     // OK - Withdrawing Combat - Defensive Stance
+        bad     // Bad - Prioritise Survival at this flag     
+    }
+
+    /// <summary>
+    /// Ensures enough time has passed for the Velocity to be calculated correctly
+    /// </summary>
     [Task]
     private void Engagement_Update_HoldAndFireValue()
     {
-        holdAndFire += 0.1f * Time.deltaTime;
+        if (currentCFGO == null || currentCFGO != attackTarget)
+        {
+            currentCFGO = attackTarget;
+            sitRepTimer = 0;
+        }
+
+        sitRepTimer += 1f * Time.deltaTime;
+        Debug.Log("Engagement_Update_HoldAndFireValue: Value = " + sitRepTimer);
+        if (sitRepTimer > 1f)
+        {
+            Task.current.Fail();
+        }
+        else
+        {
+            Task.current.Succeed();
+        }
     }
+
+    [Task]
+    private bool Enguagement_Conditional_IsTargetMovingTowardsMe()
+    {
+        return Velocity_IsAttackTargetMovingTowardsMe();
+    }
+        
+
+    [Task]
+    private void Engagement_Update_CombatFitnessHeuristics()
+    {
+        float ammoRemianing_pct =
+            (mechSystem.energy / _laser_EnergyMaxValue) * 0.33f +
+            (mechSystem.shells / _cannon_AmmoMaxValue) * 0.33f +
+            (mechSystem.missiles / _missiles_AmmoMaxValue) * 0.33f;
+
+        float healthRemaining_pct =
+            mechSystem.health / _health_MaxValue;
+
+        // Max - Recharge Till This FLag
+        if (healthRemaining_pct > 0.90f && ammoRemianing_pct > 0.80f)
+            combatFitness = CombatFitnessTier.max;
+
+        // Good - Fully Combat Ready - Can be Aggressive 
+        else if (healthRemaining_pct > 0.90f && ammoRemianing_pct > 0.80f
+            && Cannon_Conditional_OverHalfAmmoRemaining()
+            && Missile_Conditional_OverHalfAmmoRemaining()
+            && Beam_Conditional_OverHalfAmmoRemaining())
+            combatFitness = CombatFitnessTier.good;
+
+
+        // OK - Withdrawing Combat - Defensive Stance
+        // Note: All Weapons Still Firable
+        else if (healthRemaining_pct > 0.70f && ammoRemianing_pct > 0.40f
+            && Cannons_Conditional_SufficientResources()
+            && Missile_Conditional_SufficientResources()
+            && Beam_Conditional_SufficientResources())
+            combatFitness = CombatFitnessTier.ok;
+
+        // Bad - Prioritise Survival at this flag
+        else
+            combatFitness = CombatFitnessTier.bad;
+
+        Task.current.Succeed();
+    }
+    [Task]
+    private bool Enguagement_Conditional_IsCombatFitness_Max() => combatFitness == CombatFitnessTier.max;
+    [Task]
+    private bool Enguagement_Conditional_IsCombatFitness_Good() => combatFitness == CombatFitnessTier.good;
+    [Task]
+    private bool Enguagement_Conditional_IsCombatFitness_OK() => combatFitness == CombatFitnessTier.ok;
+    [Task]
+    private bool Enguagement_Conditional_IsCombatFitness_Bad() => combatFitness == CombatFitnessTier.bad;
+
+    [Task]
+    private bool Enguagement_Conditional_IsOnResourcePoint()
+    {
+        return Utility_IsCurrentlyOnAResorucePoint();
+    }
+
 
     #endregion // Engagement END
 }
