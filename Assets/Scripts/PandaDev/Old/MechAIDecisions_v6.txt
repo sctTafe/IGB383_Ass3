@@ -1,7 +1,15 @@
+// - Mech AI & Weapoons v6 -
 tree ("Root")
 	repeat
-		mute
-			tree("CombatFitnessLayer")
+		sequence
+			Engagement_Update_TargetingLogic()
+			parallel
+				mute
+					tree("CombatFitnessLayer")
+				mute
+					tree "WeaponsFire"
+				mute
+					tree "AmmoConservation"
 			
 // - Combat Fitness Layer -
 tree("CombatFitnessLayer")
@@ -58,10 +66,7 @@ tree("InOutCombatLayer_FitnessBad")
 		// Recover at Resource Point
 		tree "OutofCombat_MoveToAndStayAtResourcePointAndScan"
 
-
-
 // - 'End Leaf Node' Calling Trees -
-
 tree("Engagement_CombatPlan1")
 	fallback
 		while Engagement_Update_HoldAndFireValue()
@@ -102,6 +107,8 @@ tree("InCombat_MoveToResourcePoint")
 		//	View_LookAtAtackTarget()
 		EndLeafV5_FightingWithdrawal()
 
+
+
 tree("OutofCombat_MoveToAndStayAtResourcePointAndScan")
 	fallback
 		while Enguagement_Conditional_IsOnResourcePoint()
@@ -115,43 +122,121 @@ tree("OutofCombat_MoveToAndStayAtResourcePointAndScan")
 		EndLeafV5_HuntForTarget()
 
 
-// - Original FSM to BT (Not used) -
-tree ("Original")
-    repeat
-        mute
-            fallback
-                tree "Pursuing"
-                tree "Attacking"
-                tree "Fleeing"
-                tree "Roaming"
+// - Weapons & Ammo Conservation Trees - 
+// Tree for controlling Ammo Conservation
+tree ("AmmoConservation")
+		parallel
+			mute
+				tree "LaserConservationMode"	
+			mute
+				tree "CannonConservationMode"
+			mute
+				tree "MissileConservationMode"
+			mute
+				tree "BeamConservationMode"
 
-tree ("Pursuing")
+// Tree for controlling when to fire weapons
+tree ("WeaponsFire")
+	fallback
+		while Targeting_Conditional_HasAttackTarget()		
+			parallel
+				mute
+					tree "Laser"
+				mute
+					tree "Cannons"
+				mute
+					tree "Missiles"
+				mute
+					tree "Beam"
+		// If No Target deactivate Beam
+		Beam_Action_DeactivateBeam()
+
+// Ammo Conservation
+tree ("CannonConservationMode_Type2")
+	parallel
+		mute
+			while Cannon_Conditional_OverHalfAmmoRemaining()				
+				Cannon_Action_SetBaseWeaponValues()
+		mute
+			while not Cannon_Conditional_OverHalfAmmoRemaining()	
+				Cannon_Action_SetConservativeFiringValues()
+
+tree ("CannonConservationMode")
+	fallback
+		while Cannon_Conditional_OverHalfAmmoRemaining()				
+			Cannon_Action_SetBaseWeaponValues()
+		Cannon_Action_SetConservativeFiringValues()
+
+tree ("LaserConservationMode")
+	fallback
+		while Laser_Conditional_OverHalfAmmoRemaining()				
+			Laser_Action_SetBaseWeaponValues()
+		Laser_Action_SetConservativeFiringValues()
+
+tree ("MissileConservationMode")
+	fallback
+		while Missile_Conditional_OverHalfAmmoRemaining()				
+			Missile_Action_SetBaseWeaponValues()
+		Missile_Action_SetConservativeFiringValues()
+
+tree ("BeamConservationMode")
+	fallback
+		while Beam_Conditional_OverHalfAmmoRemaining()				
+			Beam_Action_SetBaseWeaponValues()
+		Beam_Action_SetConservativeFiringValues()
+
+// Weapons Fire
+tree ("Laser")
 	while
 		sequence
-			Targeting_Conditional_HasAttackTarget()
-			not Targeting_Conditional_isTargetInLOS()
-			not StatusCheck()
-		repeat
-			Pursue()
+			Laser_Conditional_InRange()			
+			Laser_Conditional_SufficientResources()
+		fallback
+			// In Frustum Fiering
+			while Laser_Conditional_InFireAngle()
+				Laser_Action_Fire()
 
-tree ("Attacking")
+			// Long Range Sniping (Can be disabled in MechAIDecisions -> setupCondition_LOSPlus100)		
+			while			
+				sequence
+					Movement_Conditional_IsAgentMovementStopped()
+					Targeting_Conditional_AttackTargetOver100FDistance()
+					Targeting_Conditional_AttackTargetInLOS()				
+				Laser_Action_Fire()
+										
+tree ("Cannons")
 	while
 		sequence
-			Targeting_Conditional_HasAttackTarget()
-			Targeting_Conditional_isTargetInLOS()
-			not StatusCheck()
-		repeat
-			Attack()
+			Cannons_Conditional_InRange()
+			Cannons_Conditional_SufficientResources()
+		fallback
+			// In Frustum Fiering
+			while Cannons_Conditional_InFireAngle()
+				Cannon_Action_Fire()
 
-tree ("Fleeing")
-	while 
+			// Long Range Sniping (Can be disabled in MechAIDecisions -> setupCondition_LOSPlus100)		
+			while
+				sequence
+					Movement_Conditional_IsAgentMovementStopped()
+					Targeting_Conditional_AttackTargetOver100FDistance()
+					Targeting_Conditional_AttackTargetInLOS()
+				Cannon_Action_Fire()
+					
+tree ("Missiles")
+	while
 		sequence
-			Targeting_Conditional_HasAttackTarget()
-			StatusCheck()
-		repeat
-			Flee()
+			Missile_Conditional_InRange()
+			Missile_Conditional_InFireAngle()
+			Missile_Conditional_SufficientResources()
+		Missile_Action_Fire()
+			
+tree ("Beam")
+	fallback
+		while
+			sequence
+				Beam_Conditional_InRange()
+				Beam_Conditional_InFireAngle()
+				Beam_Conditional_SufficientResources()
+			Beam_Action_Activate()		
+		Beam_Action_DeactivateBeam()
 
-tree ("Roaming")
-	while not Targeting_Conditional_HasAttackTarget()
-		repeat
-			Roam()

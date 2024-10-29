@@ -72,6 +72,10 @@ public class MechSystems : TakeDamage {
         }
 
         if (bot)
-            GetComponent<MechAIDecisions>().TakingFire(origin);
+        {
+            //GetComponent<MechAIDecisions>().TakingFire(origin);
+            GetComponent<MechAIDecision_ScottBarley>().TakingFire(origin);           
+        }
+            
     }
 }

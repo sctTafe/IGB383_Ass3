@@ -1,0 +1,316 @@
+// - Mech AI & Weapoons v6 -
+tree ("Root")
+	repeat
+		sequence
+			Engagement_Update_TargetingLogic()
+			parallel
+				mute
+					tree("CombatFitnessLayer")
+				mute
+					tree "WeaponsFire"
+				mute
+					tree "AmmoConservation"
+			
+// - Combat Fitness Layer -
+tree("CombatFitnessLayer")
+	sequence
+		Engagement_Update_CombatFitnessHeuristics() // Will Always Succeed
+		
+		// Choose Combat Fitness Branch
+		fallback
+		
+			// Fully Combat Ready - Can be Aggressive 
+			while		
+				fallback
+					Enguagement_Conditional_IsCombatFitness_Max()
+					Enguagement_Conditional_IsCombatFitness_Good()
+				tree "InOutCombatLayer_FitnessGood"
+
+			// Withdrawing Combat - Defensive Stance
+			while Enguagement_Conditional_IsCombatFitness_OK()
+				tree "InOutCombatLayer_FitnessOk"
+
+			// Prioritise Survival at this flag
+			while Enguagement_Conditional_IsCombatFitness_Bad()
+				tree "InOutCombatLayer_FitnessBad"
+// -----------------------------------------------------------------------
+
+// - In/Out Combat Layer -
+
+tree("InOutCombatLayer_FitnessGood")
+	fallback
+		// Aggressive Attack
+		while Targeting_Conditional_HasAttackTarget()
+			tree "Engagement_CombatPlan1"
+		// Hunt For Target
+		tree "Hunt"
+
+tree("InOutCombatLayer_FitnessOk")
+	fallback
+		// Stand Ground Attack
+		while Targeting_Conditional_HasAttackTarget()
+			fallback
+				while Stats_HPLossRate_VeryHigh()
+					tree "InCombat_MoveToOrStrafAroundClosestResroucePoint_Teir2"
+				tree "InCombat_MoveToResourcePointAndHoldStillOnIt_Teir2"
+
+		// Stay At Resource Point & Scan For Target
+		tree "OutofCombat_MoveToAndStayAtResourcePointAndScan"
+
+tree("InOutCombatLayer_FitnessBad")
+	fallback
+		// Escape
+		while Targeting_Conditional_HasAttackTarget()
+			fallback
+				// If On A Resource Point, Stay Put
+				while Enguagement_Conditional_IsOnResourcePoint()
+					parallel
+						Movement_Action_StandStill()
+						View_LookAtAtackTarget()
+				// Else Escape
+				fallback
+					while Stats_HPLossRate_High()
+						tree "InCombat_MoveToOrStrafAroundClosestResroucePoint_Teir3"
+				tree "InCombat_MoveToResourcePointAndHoldStillOnIt_Teir3"
+
+		// Recover at Resource Point
+		tree "OutofCombat_MoveToAndStayAtLowRiskResourcePointAndScan"
+
+// ---------------------------------------------------------------------------
+
+// - 'End Leaf Node' Calling Trees -
+
+tree("Engagement_CombatPlan1")
+	fallback
+		while Engagement_Update_HoldAndFireValue()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
+		while Enguagement_Conditional_IsTargetMovingTowardsMe()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
+		tree "Enguagment_MoveFowardToOptimalDistance"
+
+tree("Enguagment_MoveFowardToOptimalDistance")
+	while Targeting_Conditional_HasAttackTarget()
+		//sequence
+		//	Movement_Action_MoveTowardsAttachTarget_ToOptimalAttackRange()
+		//	View_LookAtAtackTarget()
+		EndLeafV5_CombatPlanA_AdvanceOnTarget()
+
+tree("Hunt")
+	while not Targeting_Conditional_HasAttackTarget()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_CuriouseLookAround()
+		EndLeafV5_HuntForTarget()
+
+tree("InCombat_MoveToResourcePoint")
+	fallback
+		while Enguagement_Conditional_IsOnResourcePoint()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_LookAtAtackTarget()
+		EndLeafV5_FightingWithdrawal()
+
+tree("InCombat_MoveToResourcePointAndHoldStillOnIt_Teir2")
+	fallback
+		while Enguagement_Conditional_IsOnResourcePoint()
+			parallel
+				Movement_Action_StandStill()
+				View_LookAtAtackTarget()
+		parallel
+			Movement_Action_MoveToClosestTeir2ResourcePoint()
+			View_LookAtAtackTarget()
+
+tree("InCombat_MoveToResourcePointAndHoldStillOnIt_Teir3")
+	fallback
+		while Enguagement_Conditional_IsOnResourcePoint()
+			parallel
+				Movement_Action_StandStill()
+				View_LookAtAtackTarget()
+		parallel
+			Movement_Action_MoveToClosestTeir3ResourcePoint()
+			View_LookAtAtackTarget()
+
+
+
+tree("InCombat_MoveToOrStrafAroundClosestResroucePoint_Teir2")
+	fallback
+		while Enguagement_Conditional_IsNearResourcePoint()
+			parallel
+				Movement_StrafeAroundClosestResourcePoint()
+				View_LookAtAtackTarget()
+		parallel
+			Movement_Action_MoveToClosestTeir2ResourcePoint()
+			View_LookAtAtackTarget()
+
+
+tree("InCombat_MoveToOrStrafAroundClosestResroucePoint_Teir3")
+	fallback
+		while Enguagement_Conditional_IsNearResourcePoint()
+			parallel
+				Movement_StrafeAroundClosestResourcePoint()
+				View_LookAtAtackTarget()
+		parallel
+			Movement_Action_MoveToClosestTeir3ResourcePoint()
+			View_LookAtAtackTarget()
+
+
+tree("OutofCombat_MoveToAndStayAtResourcePointAndScan")
+	fallback
+		while Enguagement_Conditional_IsOnResourcePoint()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_Spin()
+			EndLeafV5_VigilantlyHoldPosition()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_CuriouseLookAround()
+		EndLeafV5_HuntForTarget()
+
+tree("OutofCombat_MoveToAndStayAtLowRiskResourcePointAndScan")
+	fallback
+		// While Stood on a tier 3 resrouce point, stay put
+		while 
+			sequence
+				Enguagement_Conditional_IsOnResourcePoint()
+				Enguagement_Conditional_IsOnLowRiskResourcePoint()
+			parallel
+				Movement_Action_StandStill()
+				View_Spin()
+		// Else move to the closed tier 3 RP
+		parallel
+			Movement_Action_MoveToClosestTeir3ResourcePoint()
+			View_CuriouseLookAround()
+
+
+// - Weapons & Ammo Conservation Trees - 
+// Tree for controlling Ammo Conservation
+tree ("AmmoConservation")
+		parallel
+			mute
+				tree "LaserConservationMode"	
+			mute
+				tree "CannonConservationMode"
+			mute
+				tree "MissileConservationMode"
+			mute
+				tree "BeamConservationMode"
+
+// Tree for controlling when to fire weapons
+tree ("WeaponsFire")
+	fallback
+		while Targeting_Conditional_HasAttackTarget()		
+			parallel
+				mute
+					tree "Laser"
+				mute
+					tree "Cannons"
+				mute
+					tree "Missiles"
+				mute
+					tree "Beam"
+		// If No Target deactivate Beam
+		Beam_Action_DeactivateBeam()
+
+// Ammo Conservation
+tree ("CannonConservationMode_Type2")
+	parallel
+		mute
+			while Cannon_Conditional_OverHalfAmmoRemaining()				
+				Cannon_Action_SetBaseWeaponValues()
+		mute
+			while not Cannon_Conditional_OverHalfAmmoRemaining()	
+				Cannon_Action_SetConservativeFiringValues()
+
+tree ("CannonConservationMode")
+	fallback
+		while Cannon_Conditional_OverHalfAmmoRemaining()				
+			Cannon_Action_SetBaseWeaponValues()
+		Cannon_Action_SetConservativeFiringValues()
+
+tree ("LaserConservationMode")
+	fallback
+		while Laser_Conditional_OverHalfAmmoRemaining()				
+			Laser_Action_SetBaseWeaponValues()
+		Laser_Action_SetConservativeFiringValues()
+
+tree ("MissileConservationMode")
+	fallback
+		while Missile_Conditional_OverHalfAmmoRemaining()				
+			Missile_Action_SetBaseWeaponValues()
+		Missile_Action_SetConservativeFiringValues()
+
+tree ("BeamConservationMode")
+	fallback
+		while Beam_Conditional_OverHalfAmmoRemaining()				
+			Beam_Action_SetBaseWeaponValues()
+		Beam_Action_SetConservativeFiringValues()
+
+// Weapons Fire
+tree ("Laser")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()	// already checked in previouse node, but Prevents Error if object is destroyed at wrong time, parellel issue?
+			Laser_Conditional_InRange()			
+			Laser_Conditional_SufficientResources()
+		fallback
+			// In Frustum Fiering
+			while Laser_Conditional_InFireAngle()
+				Laser_Action_Fire()
+
+			// Long Range Sniping (Can be disabled in MechAIDecisions -> setupCondition_LOSPlus100)		
+			while			
+				sequence
+					Movement_Conditional_IsAgentMovementStopped()
+					Targeting_Conditional_AttackTargetOver100FDistance()
+					Targeting_Conditional_AttackTargetInLOS()				
+				Laser_Action_Fire()
+										
+tree ("Cannons")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()	// already checked in previouse node, but Prevents Error if object is destroyed at wrong time, parellel issue?
+			Cannons_Conditional_InRange()
+			Cannons_Conditional_SufficientResources()
+		fallback
+			// In Frustum Fiering
+			while Cannons_Conditional_InFireAngle()
+				Cannon_Action_Fire()
+
+			// Long Range Sniping (Can be disabled in MechAIDecisions -> setupCondition_LOSPlus100)		
+			while
+				sequence
+					Movement_Conditional_IsAgentMovementStopped()
+					Targeting_Conditional_AttackTargetOver100FDistance()
+					Targeting_Conditional_AttackTargetInLOS()
+				Cannon_Action_Fire()
+					
+tree ("Missiles")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()	// already checked in previouse node, but Prevents Error if object is destroyed at wrong time, parellel issue?
+			Missile_Conditional_InRange()
+			Missile_Conditional_InFireAngle()
+			Missile_Conditional_SufficientResources()
+		Missile_Action_Fire()
+			
+tree ("Beam")
+	fallback
+		while
+			sequence
+				Targeting_Conditional_HasAttackTarget()	// already checked in previouse node, but Prevents Error if object is destroyed at wrong time, parellel issue?
+				Beam_Conditional_InRange()
+				Beam_Conditional_InFireAngle()
+				Beam_Conditional_SufficientResources()
+			Beam_Action_Activate()		
+		Beam_Action_DeactivateBeam()
+

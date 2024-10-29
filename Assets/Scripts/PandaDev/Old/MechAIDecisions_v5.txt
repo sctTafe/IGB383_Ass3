@@ -1,0 +1,156 @@
+tree ("Root")
+	repeat
+		mute
+			tree("CombatFitnessLayer")
+			
+// - Combat Fitness Layer -
+tree("CombatFitnessLayer")
+	sequence
+		Engagement_Update_CombatFitnessHeuristics() // Will Always Succeed
+		
+		// Choose Combat Fitness Branch
+		fallback
+		
+			// Fully Combat Ready - Can be Aggressive 
+			while		
+				fallback
+					Enguagement_Conditional_IsCombatFitness_Max()
+					Enguagement_Conditional_IsCombatFitness_Good()
+				tree "InOutCombatLayer_FitnessGood"
+
+			// Withdrawing Combat - Defensive Stance
+			while Enguagement_Conditional_IsCombatFitness_OK()
+				tree "InOutCombatLayer_FitnessOk"
+
+			// Prioritise Survival at this flag
+			while Enguagement_Conditional_IsCombatFitness_Bad()
+				tree "InOutCombatLayer_FitnessBad"
+
+// - In/Out Combat Layer
+tree("InOutCombatLayer_FitnessGood")
+	fallback
+		// Aggressive Attack
+		while Targeting_Conditional_HasAttackTarget()
+			tree "Engagement_CombatPlan1"
+		// Hunt For Target
+		tree "Hunt"
+
+tree("InOutCombatLayer_FitnessOk")
+	fallback
+		// Stand Ground Attack
+		while Targeting_Conditional_HasAttackTarget()
+			tree "InCombat_MoveToResourcePoint"
+		// Stay At Resource Point & Scan For Target
+		tree "OutofCombat_MoveToAndStayAtResourcePointAndScan"
+
+tree("InOutCombatLayer_FitnessBad")
+	fallback
+		// Escape
+		while Targeting_Conditional_HasAttackTarget()
+			fallback
+				// If On A Resource Point, Stay Put
+				while Enguagement_Conditional_IsOnResourcePoint()
+					parallel
+						Movement_Action_StandStill()
+						View_LookAtAtackTarget()
+				// Else Escape
+				tree "InCombat_MoveToResourcePoint"
+		// Recover at Resource Point
+		tree "OutofCombat_MoveToAndStayAtResourcePointAndScan"
+
+
+
+// - 'End Leaf Node' Calling Trees -
+tree("Engagement_CombatPlan1")
+	fallback
+		while Engagement_Update_HoldAndFireValue()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
+		while Enguagement_Conditional_IsTargetMovingTowardsMe()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
+		tree "Enguagment_MoveFowardToOptimalDistance"
+
+tree("Enguagment_MoveFowardToOptimalDistance")
+	while Targeting_Conditional_HasAttackTarget()
+		//sequence
+		//	Movement_Action_MoveTowardsAttachTarget_ToOptimalAttackRange()
+		//	View_LookAtAtackTarget()
+		EndLeafV5_CombatPlanA_AdvanceOnTarget()
+
+tree("Hunt")
+	while not Targeting_Conditional_HasAttackTarget()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_CuriouseLookAround()
+		EndLeafV5_HuntForTarget()
+
+tree("InCombat_MoveToResourcePoint")
+	fallback
+		while Enguagement_Conditional_IsOnResourcePoint()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_LookAtAtackTarget()
+		EndLeafV5_FightingWithdrawal()
+
+tree("OutofCombat_MoveToAndStayAtResourcePointAndScan")
+	fallback
+		while Enguagement_Conditional_IsOnResourcePoint()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_Spin()
+			EndLeafV5_VigilantlyHoldPosition()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_CuriouseLookAround()
+		EndLeafV5_HuntForTarget()
+
+
+// - Original FSM to BT (Not used) -
+tree ("Original")
+    repeat
+        mute
+            fallback
+                tree "Pursuing"
+                tree "Attacking"
+                tree "Fleeing"
+                tree "Roaming"
+
+tree ("Pursuing")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			not Targeting_Conditional_isTargetInLOS()
+			not StatusCheck()
+		repeat
+			Pursue()
+
+tree ("Attacking")
+	while
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			Targeting_Conditional_isTargetInLOS()
+			not StatusCheck()
+		repeat
+			Attack()
+
+tree ("Fleeing")
+	while 
+		sequence
+			Targeting_Conditional_HasAttackTarget()
+			StatusCheck()
+		repeat
+			Flee()
+
+tree ("Roaming")
+	while not Targeting_Conditional_HasAttackTarget()
+		repeat
+			Roam()
