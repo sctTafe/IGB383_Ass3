@@ -412,7 +412,7 @@ public partial class MechAIDecisions
         }
 
         sitRepTimer += 1f * Time.deltaTime;
-        Debug.Log("Engagement_Update_HoldAndFireValue: Value = " + sitRepTimer);
+        //Debug.Log("Engagement_Update_HoldAndFireValue: Value = " + sitRepTimer);
         if (sitRepTimer > 1f)
         {
             Task.current.Fail();
@@ -484,4 +484,54 @@ public partial class MechAIDecisions
 
 
     #endregion // Engagement END
+
+
+    #region Required 'leaf nodes' (Version 5)
+
+    [Task]
+    private void EndLeafV5_CombatPlanA_HoldPositon()
+    {
+        Movement_Action_StandStill();
+        View_LookAtAtackTarget();
+
+        Task.current.Succeed();
+    }
+
+    [Task]
+    private void EndLeafV5_CombatPlanA_AdvanceOnTarget()
+    {
+        Movement_Action_MoveTowardsAttachTarget_ToOptimalAttackRange();
+        View_LookAtAtackTarget();
+
+        Task.current.Succeed();
+    }
+
+    [Task]
+    private void EndLeafV5_HuntForTarget()
+    {
+        Movement_Action_MoveToClosestTeir2ResourcePoint();
+        View_CuriouseLookAround();
+
+        Task.current.Succeed();
+    }
+
+    [Task]
+    private void EndLeafV5_FightingWithdrawal()
+    {
+        Movement_Action_MoveToClosestTeir2ResourcePoint();
+        View_LookAtAtackTarget();
+
+        Task.current.Succeed();
+    }
+
+    [Task]
+    private void EndLeafV5_VigilantlyHoldPosition()
+    {
+        Movement_Action_MoveToClosestTeir2ResourcePoint();
+        View_LookAtAtackTarget();
+
+        Task.current.Succeed();
+    }
+
+    #endregion
 }

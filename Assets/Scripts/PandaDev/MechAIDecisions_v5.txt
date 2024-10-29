@@ -60,79 +60,71 @@ tree("InOutCombatLayer_FitnessBad")
 
 
 
-// - Complex Actions -
+// - 'End Leaf Node' Calling Trees -
 
 tree("Engagement_CombatPlan1")
 	fallback
 		while Engagement_Update_HoldAndFireValue()
-			parallel
-				Movement_Action_StandStill()
-				View_LookAtAtackTarget()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
 		while Enguagement_Conditional_IsTargetMovingTowardsMe()
-			parallel
-				Movement_Action_StandStill()
-				View_LookAtAtackTarget()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
 		tree "Enguagment_MoveFowardToOptimalDistance"
-
-
-// - Actions -
-
-tree("Hunt")
-	while not Targeting_Conditional_HasAttackTarget()
-		parallel
-			Movement_Action_MoveToClosestTeir2ResourcePoint()
-			View_CuriouseLookAround()
 
 tree("Enguagment_MoveFowardToOptimalDistance")
 	while Targeting_Conditional_HasAttackTarget()
-		sequence
-			Movement_Action_MoveTowardsAttachTarget_ToOptimalAttackRange()
-			View_LookAtAtackTarget()
+		//sequence
+		//	Movement_Action_MoveTowardsAttachTarget_ToOptimalAttackRange()
+		//	View_LookAtAtackTarget()
+		EndLeafV5_CombatPlanA_AdvanceOnTarget()
 
+tree("Hunt")
+	while not Targeting_Conditional_HasAttackTarget()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_CuriouseLookAround()
+		EndLeafV5_HuntForTarget()
 
 tree("InCombat_MoveToResourcePoint")
 	fallback
 		while Enguagement_Conditional_IsOnResourcePoint()
-			parallel
-				Movement_Action_StandStill()
-				View_LookAtAtackTarget()
-		parallel
-			Movement_Action_MoveToClosestTeir2ResourcePoint()
-			View_LookAtAtackTarget()
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_LookAtAtackTarget()
+			EndLeafV5_CombatPlanA_HoldPositon()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_LookAtAtackTarget()
+		EndLeafV5_FightingWithdrawal()
 
 tree("OutofCombat_MoveToAndStayAtResourcePointAndScan")
 	fallback
 		while Enguagement_Conditional_IsOnResourcePoint()
-			parallel
-				Movement_Action_StandStill()
-				View_Spin()			
-		parallel
-			Movement_Action_MoveToClosestTeir2ResourcePoint()
-			View_CuriouseLookAround()
-	
-	
+			//parallel
+			//	Movement_Action_StandStill()
+			//	View_Spin()
+			EndLeafV5_VigilantlyHoldPosition()
+		//parallel
+		//	Movement_Action_MoveToClosestTeir2ResourcePoint()
+		//	View_CuriouseLookAround()
+		EndLeafV5_HuntForTarget()
 
 
+// - Original FSM to BT (Not used) -
+tree ("Original")
+    repeat
+        mute
+            fallback
+                tree "Pursuing"
+                tree "Attacking"
+                tree "Fleeing"
+                tree "Roaming"
 
-
-tree("Enguagment_Type1_HoldAndFire")
-	while Targeting_Conditional_HasAttackTarget()
-		sequence
-			Movement_Action_StandStill()
-			View_LookAtAtackTarget()
-			Engagement_Update_HoldAndFireValue()
-
-tree("Enguagment_Pursue")
-	while Targeting_Conditional_HasAttackTarget()
-		sequence
-			Movement_Action_MoveTowardsAttackTarget_Close()
-			View_LookAtAtackTarget()
-
-
-
-
-
-// - Old Actions - 
 tree ("Pursuing")
 	while
 		sequence
@@ -163,11 +155,3 @@ tree ("Roaming")
 	while not Targeting_Conditional_HasAttackTarget()
 		repeat
 			Roam()
-
-tree ("ResourceHunt")
-	while Temp()
-		repeat
-			GoToNearestActiveResourcePoint()
-
-
-
